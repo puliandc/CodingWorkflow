@@ -8,6 +8,16 @@
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/guard-impl-access.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/validate-commit-msg.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/guard-context-pollution.sh",
+            "timeout": 10
           }
         ]
       }
