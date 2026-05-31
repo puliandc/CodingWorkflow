@@ -1,0 +1,14 @@
+{
+  "repo": "owner/name",
+  "baseBranch": "origin/main",
+  "project": {
+    "id": "PVT_...",
+    "statusFieldId": "PVTSSF_...",
+    "statusOptions": {
+      "todo": "f75ad846",
+      "inProgress": "47fc9ee4",
+      "done": "98236657"
+    }
+  },
+  "worktreeDir": "../name-worktrees"
+}
