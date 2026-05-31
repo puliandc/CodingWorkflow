@@ -167,7 +167,12 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
      --title "<Phase 中文标题>" \
      --summary "<Phase 总体摘要>"
    ```
-3. 提示人工合并该 Phase PR。合并完成后，人工运行以下命令清理工作区：
+3. **可选的 Retro 复盘与知识沉淀机制 (质量纪律 8)**：
+   - 检查本地项目的 `.orch/config.json` 里是否开启了 `"enableRetro": true`：
+     - 若开启，则派发一个 `Agent(subagent_type="retro")`。
+       - **职责**：总结本轮开发中的「踩坑记录、根本原因、防错规则」，并将其格式化回写到项目配置的 retroDir 目录（默认为 `docs/retro/retro-phase-<N>.md`）下，闭合学习环。
+     - 若未开启，则直接跳过该步骤。
+4. 提示人工合并该 Phase PR。合并完成后，人工运行以下命令清理工作区：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" worktree-remove --phase-issue <phase_issue>
    ```
