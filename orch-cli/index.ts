@@ -24,6 +24,12 @@ const COMMANDS: Record<string, string> = {
   'worktree-remove':   '清理 Phase 的本地 worktree 与分支（Phase PR 合并后调用）',
   'gate':              '执行 lint/format/test 并进行真绿/伪绿三硬判定',
   'precheck':          '进行编码前的契约三表与占位符确定性门禁校验',
+  'intake-check':      '校验 intake.md 需求入口准入合规度',
+  'contract-register': '登记 sub-issue 契约白名单和冻结表至全局看板',
+  'contract-check':    '跨分支碰撞校验当前 sub-issue 与全局并发契约的冲突',
+  'chaos-gate':        '审计并门禁混沌红蓝对抗验证报告（docs/test/chaos-report.md）',
+  'release-check':     '审计生产部署与一键回退 Runbook（docs/release/release-plan.md）',
+  'guardrail-compile': '读取 retro.md 编译防错候选配置与钩子 Diffs',
 };
 
 /**
@@ -119,6 +125,36 @@ async function main(): Promise<void> {
     }
     case 'precheck': {
       const m = await import('./commands/precheck');
+      m.run(rest);
+      break;
+    }
+    case 'intake-check': {
+      const m = await import('./commands/intake-check');
+      m.run(rest);
+      break;
+    }
+    case 'contract-register': {
+      const m = await import('./commands/contract-register');
+      m.run(rest);
+      break;
+    }
+    case 'contract-check': {
+      const m = await import('./commands/contract-check');
+      m.run(rest);
+      break;
+    }
+    case 'chaos-gate': {
+      const m = await import('./commands/chaos-gate');
+      m.run(rest);
+      break;
+    }
+    case 'release-check': {
+      const m = await import('./commands/release-check');
+      m.run(rest);
+      break;
+    }
+    case 'guardrail-compile': {
+      const m = await import('./commands/guardrail-compile');
       m.run(rest);
       break;
     }

@@ -81,6 +81,16 @@ export function run(args: string[]): void {
     featureName: feature,
     phaseWorktreePath: phaseWorktreePathForBranch(branch),
     subIssues,
+    metrics: {
+      needsUserInputCount: 0,
+      needsUserInputReasons: [],
+      precheckFailures: 0,
+      gateFailures: 0,
+      whitelistBreaches: 0,
+      totalLeadTimeMs: 0,
+      prReopenCount: 0,
+      startTime: Date.now(),
+    },
   };
 
   if (dryRun) {

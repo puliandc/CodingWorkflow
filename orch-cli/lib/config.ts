@@ -28,6 +28,29 @@ export interface ProjectConfig {
     successString?: string;
     errorKeywords?: string[];
   };
+  workflowGates?: {
+    intake?: 'block' | 'warn' | 'off';
+    probing?: 'block' | 'warn' | 'off';
+    adr?: 'block' | 'warn' | 'off';
+    contractCollision?: 'block' | 'warn' | 'off';
+    chaos?: 'block' | 'warn' | 'off';
+    release?: 'block' | 'warn' | 'off';
+    guardrailCompile?: 'block' | 'warn' | 'off';
+  };
+  contractRegistry?: {
+    path?: string;
+    conflictStrategy?: 'block' | 'warn' | 'off';
+  };
+  observability?: {
+    specFile?: string;
+    metricsUrl?: string;
+    hotfixTemplate?: string;
+  };
+  guardrailCompiler?: {
+    allowAutoRewrite?: boolean;
+    targetConfigs?: string[];
+  };
+  migrationCheck?: boolean;
 }
 
 let loadedConfig: ProjectConfig | null = null;

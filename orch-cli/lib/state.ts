@@ -127,6 +127,17 @@ export interface SubIssueState {
   prNumber: number | null;
 }
 
+export interface WorkflowMetrics {
+  needsUserInputCount: number;
+  needsUserInputReasons: string[];
+  precheckFailures: number;
+  gateFailures: number;
+  whitelistBreaches: number;
+  totalLeadTimeMs: number;
+  prReopenCount: number;
+  startTime?: number;
+}
+
 /** 整体 Phase 进度 */
 export interface OrchState {
   /** Phase issue 编号 */
@@ -139,6 +150,8 @@ export interface OrchState {
   phaseWorktreePath: string | null;
   /** sub-issue 执行列表，顺序即执行顺序 */
   subIssues: SubIssueState[];
+  /** [NEW] 工作流自身的效能度量指标看板 */
+  metrics?: WorkflowMetrics;
 }
 
 /**
@@ -245,6 +258,24 @@ export function validateState(state: OrchState): void {
       throw new Error(`进度文件格式错误：${prefix}.prNumber 必须是数字或 null`);
     }
   }
+
+  if (state.metrics !== undefined) {
+    if (typeof state.metrics !== 'object' || state.metrics === null) {
+      throw new Error('进度文件格式错误：metrics 必须是对象');
+    }
+    if (typeof state.metrics.needsUserInputCount !== 'number') {
+      throw new Error('进度文件格式错误：metrics.needsUserInputCount 必须是数字');
+    }
+    if (typeof state.metrics.precheckFailures !== 'number') {
+      throw new Error('进度文件格式错误：metrics.precheckFailures 必须是数字');
+    }
+    if (typeof state.metrics.gateFailures !== 'number') {
+      throw new Error('进度文件格式错误：metrics.gateFailures 必须是数字');
+    }
+    if (typeof state.metrics.whitelistBreaches !== 'number') {
+      throw new Error('进度文件格式错误：metrics.whitelistBreaches 必须是数字');
+    }
+  }
 }
 
 /**
@@ -278,4 +309,72 @@ export function withStateLock<T>(fn: () => T): T {
   } finally {
     try { rmdirSync(lockDir); } catch { /* 锁目录已被清理则忽略 */ }
   }
+}
+
+/**
+ * 架构契约三表结构化数据
+ */
+export interface ExtractedContracts {
+  whitelist: string[];
+  frozen: string[];
+  regressionGuards: string[];
+}
+
+/**
+ * 通用解析器：从 arch.md 的 Markdown 文本中提取白名单、冻结表与回归护栏
+ */
+export function parseArchContracts(archContent: string): ExtractedContracts {
+  const whitelist: string[] = [];
+  const frozen: string[] = [];
+  const regressionGuards: string[] = [];
+
+  // 1. 提取文件白名单
+  const whitelistMatch = archContent.match(/#### \[契约\] 文件白名单([\s\S]*?)(?=\n#### |\Z)/);
+  if (whitelistMatch) {
+    const lines = whitelistMatch[1].trim().split('\n');
+    for (const line of lines) {
+      if (line.includes('|') && !['允许路径', '---', '允许的路径', '变更类型'].some(k => line.includes(k))) {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length > 2 && parts[1]) {
+          const clean = parts[1].replace(/`/g, '').trim();
+          if (clean) whitelist.push(clean);
+        }
+      }
+    }
+  }
+
+  // 2. 提取冻结表
+  const frozenMatch = archContent.match(/#### \[契约\] 冻结表([\s\S]*?)(?=\n#### |\Z)/);
+  if (frozenMatch) {
+    const lines = frozenMatch[1].trim().split('\n');
+    for (const line of lines) {
+      if (line.includes('|') && !['冻结路径', '---', '说明'].some(k => line.includes(k))) {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length > 2 && parts[1]) {
+          const clean = parts[1].replace(/`/g, '').trim();
+          if (clean) frozen.push(clean);
+        }
+      }
+    }
+  }
+
+  // 3. 提取回归护栏
+  const guardMatch = archContent.match(/#### \[契约\] 回归护栏([\s\S]*?)(?=\n#### |\Z)/);
+  if (guardMatch) {
+    const lines = guardMatch[1].trim().split('\n');
+    for (const line of lines) {
+      if (line.includes('|') && !['验证用例', '---', '期望结果', '回归脚本'].some(k => line.includes(k))) {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length > 2 && parts[1]) {
+          const clean = parts[1].replace(/`/g, '').trim();
+          const cleanResult = parts[2] ? parts[2].replace(/`/g, '').trim() : '';
+          if (clean && !['无', '暂无', '待填写'].includes(clean) && !['无', '暂无', '待填写'].includes(cleanResult)) {
+            regressionGuards.push(clean);
+          }
+        }
+      }
+    }
+  }
+
+  return { whitelist, frozen, regressionGuards };
 }

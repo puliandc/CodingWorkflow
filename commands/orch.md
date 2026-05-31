@@ -1,58 +1,81 @@
 ---
-description: 通用 Phase 编排插件。支持任何 GitHub 项目：拆分子 issue → 串行推进分支生命周期 → 派发通用 coding agent → 创建 sub/phase PR → 清理 worktree。
-argument-hint: "[<Phase issue URL 或编号>|confirm|status|resume|escalate <原因>]"
+description: 全生命周期自演进 AI 工程工作流编排插件。支持任何 GitHub 项目：需求准入准出 → 只读现状勘探 → 并发语义锁碰撞检测 → 方案 ADR 取舍 → 物理拦截编码 → 红蓝混沌负向安全防御 → PR 提单与 Release 规约 → Post-merge 交付校验 → 遥测闭环与规则编译器进化。
+argument-hint: "[<Phase issue URL 或编号>|confirm|status|resume|escalate <原因>|post-merge <Phase>]"
 ---
 
-# /orch — 通用 Phase 编排
+# /orch — 全生命周期 AI 工程工作流编排
 
-你是主会话内的 orch 编排者。你在主会话内直接执行，你拥有 AskUserQuestion 弹窗确认工具、spawn 子 agents 工具、运行 bash 脚本工具以及 gh CLI 工具。
+你是主会话内的 `CodingWorkflow` 全生命周期编排者 `orch`。你在主会话内直接执行，你拥有 AskUserQuestion 弹窗确认工具、spawn 子 agents 工具、运行 bash 脚本工具以及 gh CLI 工具。
 
-你将从当前项目根目录下的 `.orch/config.json` 加载项目专属参数（由 `orch-cli` 自动处理，无需硬编码）。
+你将从当前项目根目录下的 `.orch/config.json` 加载项目专属参数（由 `orch-cli` 自动处理，无需硬编码），并支持通过 `workflowGates` 进行 P0 阻断、P1 告警和 P2 记录的分级门禁拦截。
 
-## 核心配置说明
+---
 
-所有分支管理、状态存储、PR 创建以及 GitHub Project 状态流转已封装至插件打包好的 `orch-cli` 中。
+## 🛠️ orch-cli 统一调用入口
+
+所有分支管理、状态存储、PR 创建、分级阻断门禁以及 GitHub Project 状态流转已封装至插件打包好的 `orch-cli` 中。
 你可以通过以下命令在当前工作目录调用：
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
 ```
 
-## 路由（根据参数）
+## 🔌 路由与子命令
 
 - `/orch` 无参数（在 phase worktree 内）→ 同步当前串行 sub 的 PR 合并状态，由 `state-next` 获得下一步路由。
-- `/orch <Phase issue URL 或编号>`（在主仓库）→ 启动新 Phase：拉取 issue、确定功能英文 kebab 标识、创建 phase 分支及 phase worktree、拆分串行 sub-issues、初始化状态进度文件。
-- `/orch status` → 进度查询（打印当前 Phase 执行进度与下一步指引）。
+- `/orch <Phase issue URL 或编号>`（在主仓库）→ 启动新 Phase，自动挂载 **Phase 0 (Intake & Triage)** 准入检测。
+- `/orch post-merge <phase_issue>` → PR 合并后的交付级自动核验（测试环境部署 ping、主干健康状态确认与 retro/自进化编译触发）。
+- `/orch status` → 进度查询（打印当前 Phase 执行进度、效能 Metrics 与下一步指引）。
 - `/orch resume` → 恢复状态（读取当前 Phase 进度文件并重新输出路由指引）。
 - `/orch escalate <原因>` → 升级阻塞（创建 Decision Needed issue 并标记阻碍）。
 
 ---
 
-## 编排状态机核心流程
+## 🗺️ 全生命周期编排状态机核心流程
+
+### 阶段 0：需求入口准入 (Intake & Triage Gate)
+
+1. `gh issue view <Phase issue 编号> --repo <config.repo>` 取得原始需求标题和描述。
+2. **派发需求准入 (HARD RULE)**：
+   - 派发 `triage` agent → 分析原始 Issue 是否清晰、可执行、值得做，于工作目录下产出：`docs/triage/intake-<Issue>.md` 并进行准入裁决 `[GO | NO-GO | DISCOVERY]`。
+3. **准入阻断门禁**：
+   - 运行准入门禁校验子命令：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" intake-check --phase-issue <phase_issue>
+     ```
+   - **拦截逻辑**：
+     - 若判定为 `[NO-GO]`，直接物理阻断（exit 1），强制关闭 Issue 或退回人工治理，工作流在此终止。
+     - 若判定为 `[DISCOVERY]`，则强制扭转状态机为只读探照状态，禁止拆分 sub-issue，仅允许运行 Probing 和 Discovery。
+     - 若判定为 `[GO]`（且拦截级别不是 P0 阻断），通过门禁，进入 A0 阶段。
+
+---
 
 ### 阶段 A0：建 Phase 分支与 worktree
 
-1. `gh issue view <Phase issue 编号> --repo <config.repo>` 取得 issue 的标题和描述。
-2. 推断 Phase 所属的模块/功能名称（英文 kebab-case，例如 `login-module`），若有歧义或无法推断则使用 AskUserQuestion 追问用户。
-3. 创建 Phase 分支与独立的 phase worktree：
+1. 推断 Phase 所属的模块/功能名称（英文 kebab-case，例如 `login-module`），若有歧义使用 AskUserQuestion 追问用户。
+2. 创建 Phase 分支与独立的 phase worktree：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" branch-create --type phase --n <N> --slug <英文 kebab> --issue <phase_issue>
    ```
-4. 后续所有 Phase 内操作都必须在生成的 phase worktree 目录下（`cd <phaseWorktreePath>`）执行；主仓库继续停在基线分支。
-5. 在 phase worktree 内准备文档目录：
+3. 后续所有 Phase 内操作都必须在生成的 phase worktree 目录下（`cd <phaseWorktreePath>`）执行；主仓库保持基线干净。
+4. 在 phase worktree 内准备文档目录：
    ```bash
    mkdir -p docs/<功能名>/phase-<N>/
    ```
 
-### 阶段 A1：拆 sub-issue
+---
 
-1. 精读 Phase issue 的要求，理清边界。
-2. 使用 `gh issue create` 创建 3-10 个 sub-issues（标题和描述强制使用中文）。
+### 阶段 A1：拆 sub-issue 与现状探照 (Probing & Discovery)
+
+1. **派发全库探波 (HARD RULE)**：
+   - 派发 `probing` agent → 只读扫描代码库，检索存量相似实现、共用工具类和三方包依赖，物理输出独立探照报告：`docs/discovery/probing-<phase_issue>.md`。
+   - **拦截逻辑**：若扫出 P0 级“严重重复造核心轮子”，阻断工作流，强迫架构锁定阶段复用已有资产。
+2. 精读 Phase issue 的要求，参考 `probing` 探波报告中锁定的复用工具类，使用 `gh issue create` 创建 3-10 个 sub-issues（标题和描述强制使用中文）。
 3. 绑定父子 issue 关系：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" issue-link-sub --parent <phase_issue> --child <sub_issue>
    ```
 4. 明确 sub-issue 串行顺序（即 state-init 中 subIssues 数组的顺序）。
-5. 初始化状态进度文件：
+5. 初始化状态进度文件与效能 Metrics 看板：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-init \
      --phase-issue <phase_issue> \
@@ -60,11 +83,11 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
      --feature "<功能名>" \
      --sub-issues '[{"number":<n>,"title":"<标题>"},...]'
    ```
-6. 向用户发起**【人工确认节点 1】**（AskUserQuestion 确认拆分结果与推进顺序）。
+6. 向用户发起**【人工确认节点 1】**（AskUserQuestion 确认拆分结果与 Probing 复用清单）。
 
 ---
 
-### 阶段 B：当前 sub-issue 准备与设计阶段
+### 阶段 B：当前 sub-issue 准备、ADR 取舍与架构锁定
 
 1. 在当前 phase worktree 下创建 sub-issue 分支：
    ```bash
@@ -77,68 +100,84 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
    ```
 3. **派发架构与设计梳理 (B 阶段) (HARD RULE)**：
    - 依次派发以下子 agents，各司其职，禁止并行写入相同文件：
-     - `arch` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/arch.md`（约束：架构契约三表且回归护栏不能为空）。
-     - `test` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/test.md`（包含验收用例清单与回归校验方案；Prompt 中必须包含已生成的 `arch.md` 路径以进行参考）。
-     - 仅当 sub-issue 标有 `needs-ui` 标签时，派发 `design` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/design.md`（包含判定类型的「设计验收与量测清单」Markdown 表格）。
-4. **提交设计文档契约**：
+     - `adr` agent → 对比多方案抉择 Trade-offs，产出独立物理文件：`docs/adr/adr-<sub_issue>.md`（包含备选对比、被放弃方案原因与反悔条件）。
+     - `arch` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/arch.md`（约束：架构契约三表、可观测性三表、数据迁移 Schema 与 NFR 安全约束表）。
+     - `test` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/test.md`（包含验收用例清单与回归校验方案）。
+     - 仅当 sub-issue 标有 `needs-ui` 标签时，派发 `design` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/design.md`（包含判定类型的设计验收与量测清单 Markdown 表格）。
+4. **并发契约语义锁注册**：
+   - 将当前分支锁定的白名单与冻结表写入全局契约看板：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" contract-register --sub <sub_issue>
+     ```
+5. **提交设计文档契约**：
    - 在所有的设计文档落盘就绪后，执行提交并推送文档命令：
      ```bash
      node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage B
      ```
-5. **【人工确认节点 2】**（AskUserQuestion 弹窗确认）：
-   - 展示契约文档并询问：`sub-issue #N 的三方设计契约已生成。是否允许进入编码？`
-   - 选项：
-     - `继续` → 进入阶段 C（编码）
-     - `重新设计` → 回到当前步骤重新派发设计 agents
-     - `跳过` → 将该子任务在状态文件及看板标记为 Done/merged，继续串行推进下一个 sub-issue
+6. **【人工确认节点 2】**（AskUserQuestion 弹窗确认）：
+   - 展示 ADR 决策与契约三表，展示是否有语义锁潜在重叠。询问：`sub-issue #N 的 ADR 决策与设计契约已生成。是否允许进入编码？`
 
 ---
 
 ### 阶段 C：编码阶段
 
-1. **执行编码前门禁 precheck (HARD RULE)**：
+1. **执行编码前门禁 precheck (HARD RULE - Graded)**：
    - 在派发编码 agent 前，**必须首先**运行以下命令进行确定性门禁校验：
      ```bash
      node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" precheck --sub <sub_issue>
      ```
-   - **如果 precheck 报错或未通过，严禁派发 coding agent！** 必须直接报错停止，引导 agent 重新回到阶段 B 补齐设计契约，消灭占位符并补充回归护栏。
+   - **门禁拦截层级顺序**：
+     `intake passed ➔ probing present ➔ arch/test/adr present ➔ contract-check (语义锁碰撞) ➔ 原三表校验 ➔ coding`
+   - **如果 precheck 报 P0 错误，严禁派发 coding agent！** 必须物理阻断并结构化上报。
 2. 更新进度至 C 阶段：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage C
    ```
-3. spawn 一个 `coding` agent：
-   - 必须给 agent 传递 **Phase worktree 绝对路径**，要求它第一步必须先 `cd` 进去。
-   - 提供 sub-issue 任务内容与目标分支名。
+3. spawn 一个 `coding` agent 进行受控编码。
 4. 编码 agent 编写并 commit 推送完后，若有 `🚨 NEEDS_USER_INPUT` 则转 AskUserQuestion 裁决，正常则继续。
 
 ---
 
-### 阶段 D：验收阶段
+### 阶段 D：验收阶段与混沌红蓝防御
 
 1. 更新进度文件：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage D
    ```
-2. **派发测试与代码审查验收 (D 阶段) (HARD RULE)**：
-   - 一条消息内并行派发以下子 agents，互不干扰：
+2. **派发测试、审查与混沌对抗 (D 阶段) (HARD RULE)**：
+   - 并行派发以下子 agents：
      - `test` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/test-report.md`（要求：在 worktree 跑测试，调用 gate 进行真绿判定）。
-     - `review` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/review-report.md`（约束：核对白名单越界、对齐 UI 验收与量测清单并区分目视项）。
-3. **提交验收文档报告**：
-   - 在两份报告全 PASS 且成功生成后，立即运行提交命令：
+     - `review` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/review-report.md`（约束：核对白名单越界、对齐 UI 验收与量测清单，强审计可观测性日志级别与脱敏规范）。
+     - `chaos` agent → 产出 `docs/test/chaos-report-<sub_issue>.md`（约束：只读审计异常静默吞噬、空值注入防御、高并发竞态与超时 Fallback 控制，禁止改代码）。
+3. **混沌破坏门禁拦截**：
+   - PR 提单前，执行混沌门禁强核对：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" chaos-gate --sub <sub_issue>
+     ```
+   - 若存在 P0 级严重异常静默吞噬或缺 fallback，阻断工作流，强制 coding 重修自愈。
+4. **提交验收文档报告**：
+   - 验证通过后，运行提交命令：
      ```bash
      node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage D
      ```
-4. 检查 `🚨 NEEDS_USER_INPUT` 信号并推进至阶段 E。
 
 ---
 
-### 阶段 E：创建 sub-issue PR 并暂停
+### 阶段 E：PR 创建与 Release 规划
 
 1. 更新进度至 E 阶段：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage E
    ```
-2. 为 sub-issue 创建 PR：
+2. **派发发布与回滚规划**：
+   - 派发 `release` agent → 产出 `docs/release/release-plan-<sub_issue>.md`（详细标定 Feature Flag 灰度开关、生产一键物理回退 Runbook 以及数据结构 Migration 的补偿 SQL 语句）。
+3. **发布前门禁校验**：
+   - 执行发布计划硬核审计：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" release-check --sub-issue <sub_issue>
+     ```
+   - 若数据库迁移任务（带有 db-migration 标签且 migrationCheck 为 true）缺失了 down.sql 物理脚本或缺失一键回滚 Runbook，判定为 P0 阻断。
+4. 为 sub-issue 创建 PR：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" pr-create-sub \
      --phase-branch "phase-<N>-...-#<phase_issue>" \
@@ -146,33 +185,36 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
      --sub-issue <sub_issue> \
      --title "<中文标题>" \
      --summary "<PR 摘要>" \
-     --risk "无"
+     --risk "已生成 docs/release 物理回退 Runbook"
    ```
-3. 更新状态为 `pr_created`：
+5. 更新状态为 `pr_created`：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status pr_created --pr <prNumber>
    ```
-4. 输出完成消息，引导用户 review 并 merge。然后本次 /orch 调用停止。
 
 ---
 
-### 阶段 E-2：建 Phase 整体 PR 并清理
+### 阶段 E-2：Post-Merge 交付校验、Retro 与规则自进化编译
 
-1. 当所有串行 sub-issue 均已合并，主会话无参数运行 `/orch` 时，`state-next` 将返回 `create-phase-pr` 路由建议。
-2. 运行整体 Phase PR 创建：
+1. 当所有串行 sub-issue 均已合并，主会话调用以下命令运行交付级核准（或由 PR 合并 Hook 触发）：
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" pr-create-phase \
-     --phase-branch "phase-<N>-...-#<phase_issue>" \
-     --phase-issue <phase_issue> \
-     --title "<Phase 中文标题>" \
-     --summary "<Phase 总体摘要>"
+   /orch post-merge <phase_issue>
    ```
-3. **可选的 Retro 复盘与知识沉淀机制 (质量纪律 8)**：
-   - 检查本地项目的 `.orch/config.json` 里是否开启了 `"enableRetro": true`：
-     - 若开启，则派发一个 `Agent(subagent_type="retro")`。
-       - **职责**：总结本轮开发中的「踩坑记录、根本原因、防错规则」，并将其格式化回写到项目配置的 retroDir 目录（默认为 `docs/retro/retro-phase-<N>.md`）下，闭合学习环。
-     - 若未开启，则直接跳过该步骤。
-4. 提示人工合并该 Phase PR。合并完成后，人工运行以下命令清理工作区：
+2. **Post-Merge 自动化核准（交付工作流）**：
+   - 状态机自动拉取最新主干分支运行真绿验证（`gate` 门禁断言）。
+   - 自动探测预发/部署健康检查端点是否可用（Ping 校验）。
+   - 自动在 GitHub Project 看板上将该 Phase Issue 状态扭转为 Done 并物理关闭 Issue。
+3. 创建 Phase 整体交付 PR（若有必要）且执行 worktree 清理：
    ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" pr-create-phase --phase-issue <phase_issue>
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" worktree-remove --phase-issue <phase_issue>
    ```
+4. **Retro 复盘与规则自演进编译器激活**：
+   - 派发 `retro` agent → 总结踩坑记录、根本原因、防错规则，产出 `docs/retro/retro-phase-<N>.md`。
+   - 派发 `guardrail-compiler` agent → 读取 retro，自动将踩坑规约编译为配置与钩子规则 diff，产出候选防御清单 `docs/retro/guardrail-candidate-diffs-<Phase>.md`。
+   - 运行规则演进 Dry-Run，输出候选 diff 待人类确认：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" guardrail-compile --phase-issue <phase_issue> --dry-run
+     ```
+   - 提示人类输入确认，以合入物理配置（`.orch/config.json` 及 Hooks 正则表达式），闭合全链路“自进化”研发环。
+
