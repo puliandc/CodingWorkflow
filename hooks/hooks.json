@@ -1,0 +1,16 @@
+{
+  "description": "CodingWorkflow Universal Hooks",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/guard-impl-access.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
