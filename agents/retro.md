@@ -12,9 +12,9 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 ---
 
-## 核心交付：AI 防错教训记录 (HARD RULE)
+## 核心交付：AI 防错教训与机器可编译规则 (HARD RULE)
 
-为了能够沉淀本轮开发的真实踩坑教训以防后续开发重蹈覆辙，你必须产出结构化文档 `docs/retro/retro-phase-<N>.md`，包含以下固定章节：
+为了能够沉淀本轮开发的真实踩坑教训以防后续开发重蹈覆辙，且能被“自演进规则编译器”自动解析，你必须产出结构化文档 `docs/retro/retro-phase-<N>.md`，包含以下固定章节（绝对禁止缺失第四章节）：
 
 ```markdown
 # Retro 复盘教训与 AI 防错规则 — Phase <N>
@@ -28,6 +28,23 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 ## 3. 具体防错规则 (Prevention Rules)
 - [提炼出一组高度具体、具备机械化可操作性的指令或规范，指导下一次相同模块开发时的规避策略]
+
+## 4. 可编译防错规约候选 (JSON)
+你必须在此提供一段结构化 JSON 以供 rules compiler 自动 dry-run 解析。如果没有新增规则，请保持 JSON 内各数组/对象为空，严禁缺失此 JSON 块。
+```json
+{
+  "greenVerdict": {
+    "errorKeywords": ["<新增的致命报错词，如 Unhandled Rejection>"]
+  },
+  "whitelistEnforcePaths": ["<新增的越界敏感防御路径，如 config/secrets/>"],
+  "preToolUseHooks": [
+    {
+      "pattern": "<禁用的代码 AST / 敏感文本正则表达式，如 String\\.prototype>",
+      "explanation": "<简述该防御拦截正则的初衷与踩坑痛点>"
+    }
+  ]
+}
+```
 ```
 
 ---
