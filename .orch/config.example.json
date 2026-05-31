@@ -31,6 +31,29 @@
     "src/",
     "scripts/"
   ],
+  "workflowGates": {
+    "intake": "block",
+    "probing": "warn",
+    "adr": "block",
+    "contractCollision": "block",
+    "chaos": "block",
+    "release": "block",
+    "guardrailCompile": "warn"
+  },
+  "contractRegistry": {
+    "path": ".orch/contracts/registry.json",
+    "conflictStrategy": "block"
+  },
+  "observability": {
+    "specFile": "docs/ops/observability.md",
+    "metricsUrl": "https://apm.company.com/services/metrics",
+    "hotfixTemplate": ".orch/templates/hotfix-issue.md"
+  },
+  "guardrailCompiler": {
+    "allowAutoRewrite": false,
+    "targetConfigs": [".orch/config.json", "hooks/guard-impl-access.sh"]
+  },
+  "migrationCheck": true,
   "commands": {
     "lint": "npm run lint",
     "format": "npm run format",

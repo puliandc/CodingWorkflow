@@ -36,6 +36,21 @@ export function run(args: string[]): void {
     process.exit(1);
   }
 
+  if (dryRun) {
+    const registryRelPath = config.contractRegistry?.path || '.orch/contracts/registry.json';
+    const registryPath = resolve(mainRepoRoot(), registryRelPath);
+    process.stdout.write(
+      JSON.stringify({
+        ok: true,
+        dryRun: true,
+        subIssue: subNumber,
+        registryPath,
+        hint: `[Dry-Run] 将登记 sub-issue #${subNumber} 契约 (白名单与冻结表)`,
+      }) + '\n'
+    );
+    return;
+  }
+
   // 2. 确定 arch.md 契约路径
   const phaseBranch = state.phaseBranch;
   const phaseMatch = phaseBranch.match(/^phase-(\d+)-/);
@@ -68,21 +83,6 @@ export function run(args: string[]): void {
   // 4. 定位并读取全局 registry
   const registryRelPath = config.contractRegistry?.path || '.orch/contracts/registry.json';
   const registryPath = resolve(mainRepoRoot(), registryRelPath);
-
-  if (dryRun) {
-    process.stdout.write(
-      JSON.stringify({
-        ok: true,
-        dryRun: true,
-        subIssue: subNumber,
-        whitelist: contracts.whitelist,
-        frozen: contracts.frozen,
-        registryPath,
-        hint: `[Dry-Run] 将登记 sub-issue #${subNumber} 契约 (白名单: ${contracts.whitelist.length}项, 冻结: ${contracts.frozen.length}项)`,
-      }) + '\n'
-    );
-    return;
-  }
 
   // 读取或创建全局看板
   let registry: ContractRegistry = { activeContracts: [] };

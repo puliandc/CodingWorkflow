@@ -30,6 +30,8 @@ const COMMANDS: Record<string, string> = {
   'chaos-gate':        '审计并门禁混沌红蓝对抗验证报告（docs/test/chaos-report.md）',
   'release-check':     '审计生产部署与一键回退 Runbook（docs/release/release-plan.md）',
   'guardrail-compile': '读取 retro.md 编译防错候选配置与钩子 Diffs',
+  'post-merge':        '交付后自动核验与闭环清理（含健康 Ping 与 issue 关闭）',
+  'telemetry-webhook': 'APM 遥测 Webhook 异常回流物理拉起 Hotfix Issue 闭环',
 };
 
 /**
@@ -155,6 +157,16 @@ async function main(): Promise<void> {
     }
     case 'guardrail-compile': {
       const m = await import('./commands/guardrail-compile');
+      m.run(rest);
+      break;
+    }
+    case 'post-merge': {
+      const m = await import('./commands/post-merge');
+      m.run(rest);
+      break;
+    }
+    case 'telemetry-webhook': {
+      const m = await import('./commands/telemetry-webhook');
       m.run(rest);
       break;
     }

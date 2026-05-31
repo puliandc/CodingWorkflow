@@ -1,0 +1,6 @@
+{
+  "fatalStacktrace": "NullPointerException: Cannot read property 'token' of undefined\n  at parseToken (src/utils.ts:12)",
+  "featureModule": "auth-module",
+  "traceId": "t-992182-xyz",
+  "errorMessage": "NPE in parsing assets"
+}
