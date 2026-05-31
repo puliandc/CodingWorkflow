@@ -100,14 +100,20 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
 
 ### 阶段 C：编码阶段
 
-1. 更新进度至 C 阶段：
+1. **执行编码前门禁 precheck (HARD RULE)**：
+   - 在派发编码 agent 前，**必须首先**运行以下命令进行确定性门禁校验：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" precheck --sub <sub_issue>
+     ```
+   - **如果 precheck 报错或未通过，严禁派发 coding agent！** 必须直接报错停止，引导 agent 重新回到阶段 B 补齐设计契约，消灭占位符并补充回归护栏。
+2. 更新进度至 C 阶段：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage C
    ```
-2. spawn 一个 `coding` agent：
+3. spawn 一个 `coding` agent：
    - 必须给 agent 传递 **Phase worktree 绝对路径**，要求它第一步必须先 `cd` 进去。
    - 提供 sub-issue 任务内容与目标分支名。
-3. 编码 agent 编写并 commit 推送完后，若有 `🚨 NEEDS_USER_INPUT` 则转 AskUserQuestion 裁决，正常则继续。
+4. 编码 agent 编写并 commit 推送完后，若有 `🚨 NEEDS_USER_INPUT` 则转 AskUserQuestion 裁决，正常则继续。
 
 ---
 

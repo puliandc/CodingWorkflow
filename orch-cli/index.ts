@@ -23,6 +23,7 @@ const COMMANDS: Record<string, string> = {
   'commit-docs':       '提交 sub-issue 当前阶段文档（B：三文件 / D：验收报告）并推送',
   'worktree-remove':   '清理 Phase 的本地 worktree 与分支（Phase PR 合并后调用）',
   'gate':              '执行 lint/format/test 并进行真绿/伪绿三硬判定',
+  'precheck':          '进行编码前的契约三表与占位符确定性门禁校验',
 };
 
 /**
@@ -113,6 +114,11 @@ async function main(): Promise<void> {
     }
     case 'gate': {
       const m = await import('./commands/gate');
+      m.run(rest);
+      break;
+    }
+    case 'precheck': {
+      const m = await import('./commands/precheck');
       m.run(rest);
       break;
     }
