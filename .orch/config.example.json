@@ -3,12 +3,47 @@
   "baseBranch": "origin/main",
   "project": {
     "id": "PVT_...",
+    "number": 2,
     "statusFieldId": "PVTSSF_...",
     "statusOptions": {
       "todo": "f75ad846",
       "inProgress": "47fc9ee4",
       "done": "98236657"
+    },
+    "priorityFieldId": "PVTSSF_...",
+    "priorityOptions": {
+      "P0": "c2020ee5",
+      "P1": "c3db6ac5",
+      "P2": "5058738f"
     }
   },
-  "worktreeDir": "../name-worktrees"
+  "worktreeDir": "../name-worktrees",
+  "commitTypes": [
+    "功能",
+    "修复",
+    "重构",
+    "测试",
+    "文档",
+    "杂项",
+    "基建"
+  ],
+  "whitelistEnforcePaths": [
+    "src/",
+    "scripts/"
+  ],
+  "commands": {
+    "lint": "npm run lint",
+    "format": "npm run format",
+    "test": "npm run test"
+  },
+  "greenVerdict": {
+    "successString": "tests passed successfully",
+    "errorKeywords": [
+      "Error",
+      "Exception",
+      "FAILED",
+      "Parse Error",
+      "Compile Error"
+    ]
+  }
 }
