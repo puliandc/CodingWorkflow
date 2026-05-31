@@ -7,16 +7,19 @@
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/guard-impl-access.sh",
+            "matcher": "^(Write|Edit|MultiEdit|replace_file_content|multi_replace_file_content|write_to_file)$",
             "timeout": 10
           },
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/validate-commit-msg.sh",
+            "matcher": "^(Bash|run_command)$",
             "timeout": 10
           },
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/guard-context-pollution.sh",
+            "matcher": "^(Read|view_file|Bash|run_command)$",
             "timeout": 10
           }
         ]

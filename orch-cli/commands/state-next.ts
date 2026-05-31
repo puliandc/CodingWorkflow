@@ -16,7 +16,7 @@
 import { existsSync } from 'node:fs';
 
 import { parseArgs, flag } from '../lib/argv';
-import { loadState, type SubIssueState, STATE_FILE, resolveStateFile } from '../lib/state';
+import { loadState, type SubIssueState, STATE_FILE, resolveStateFile, stateFileForMessage } from '../lib/state';
 
 type NextAction =
   | 'continue-in-progress'
@@ -51,7 +51,7 @@ export function run(args: string[]): void {
       JSON.stringify({
         ok: true,
         dryRun: true,
-        file: STATE_FILE,
+        file: stateFileForMessage(),
         hint: '将读取当前 Phase 状态文件，并按串行规则返回唯一下一步',
       }) + '\n'
     );

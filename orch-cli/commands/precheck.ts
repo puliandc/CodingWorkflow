@@ -175,10 +175,9 @@ export function run(args: string[]): void {
   }
 
   // ----------------------------------------------------
-  // [NEW] APM 遥测热异常自动反哺回灌到 arch.md
+  // [NEW] APM 遥测热异常自动反哺只读检测与警告
   // ----------------------------------------------------
   const latestHotfixPath = resolve(mainRepoRoot(), '.orch/contracts/latest-hotfix.json');
-  let currentArchContent = archContent;
   if (existsSync(latestHotfixPath)) {
     try {
       const rawHotfix = readFileSync(latestHotfixPath, 'utf8');
@@ -190,30 +189,22 @@ export function run(args: string[]): void {
         const guardKey = `确认不触发: ${stackFirstLine.slice(0, 60)}`;
         
         if (!archContent.includes(guardKey)) {
-          process.stdout.write(`🧬 [APM 遥测自愈热灌溉] 检测到最新运行时异常，正在物理回灌至 arch.md...\n`);
-          
-          const newGuardLine = `\n| APM遥测自愈 | ${guardKey} | 必须通过 gate 且不再触发此 APM 遥测异常 |`;
-          
-          const matchTable = archContent.match(/(#### \[契约\] 回归护栏[\s\S]*?)(?=\n#+|\Z)/);
-          if (matchTable) {
-            const tableSection = matchTable[1].trim();
-            const upgradedTableSection = tableSection + newGuardLine;
-            currentArchContent = archContent.replace(tableSection, upgradedTableSection);
-            
-            writeFileSync(archPath, currentArchContent, 'utf8');
-            process.stdout.write(`🎉 [APM 物理灌溉成功] 已自动把生产异常堆栈特征物理灌入回归护栏表！\n`);
-          }
+          process.stderr.write(
+            `⚠️  [APM 遥测自愈警告] 检测到最新的生产运行时崩溃异常，但该特征尚未物理灌溉至 ${docsDir}/arch.md 的回归护栏中！\n` +
+            `   建议立即运行以下命令进行物理自愈热灌溉：\n` +
+            `   node orch-cli/dist/index.js telemetry-backfill --sub ${subNumber} --confirm\n\n`
+          );
         }
       }
     } catch (err) {
-      process.stderr.write(`⚠️ [APM回灌警告] 无法物理回灌 latest-hotfix.json: ${(err as Error).message}\n`);
+      process.stderr.write(`⚠️ [APM遥测只读校验警告] 无法读取最新遥测异常: ${(err as Error).message}\n`);
     }
   }
 
   // 2. 提取契约三表
   let extracted;
   try {
-    extracted = parseArchContracts(currentArchContent);
+    extracted = parseArchContracts(archContent);
   } catch (err) {
     process.stderr.write(`❌ 门禁拦截：契约文件结构损坏，${(err as Error).message}\n`);
     process.exit(1);

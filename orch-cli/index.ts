@@ -1,6 +1,6 @@
 /**
  * orch-cli 命令分发入口
- * 使用方式：tsx scripts/orch-cli/index.ts <subcommand> [flags]
+ * 使用方式：node orch-cli/dist/index.js <subcommand> [flags]
  *
  * 所有子命令统一规范：
  *   - stdout 输出 JSON：{"ok":true, ...payload}
@@ -32,13 +32,14 @@ const COMMANDS: Record<string, string> = {
   'guardrail-compile': '读取 retro.md 编译防错候选配置与钩子 Diffs',
   'post-merge':        '交付后自动核验与闭环清理（含健康 Ping 与 issue 关闭）',
   'telemetry-webhook': 'APM 遥测 Webhook 异常回流物理拉起 Hotfix Issue 闭环',
+  'telemetry-backfill': 'APM 遥测异常特征物理自愈回灌至回归护栏契约表',
 };
 
 /**
  * 打印帮助信息到 stderr
  */
 function printHelp(): void {
-  process.stderr.write('用法：tsx scripts/orch-cli/index.ts <subcommand> [flags]\n\n');
+  process.stderr.write('用法：node orch-cli/dist/index.js <subcommand> [flags]\n\n');
   process.stderr.write('可用子命令：\n');
   const maxLen = Math.max(...Object.keys(COMMANDS).map(k => k.length));
   for (const [cmd, desc] of Object.entries(COMMANDS)) {
@@ -167,6 +168,11 @@ async function main(): Promise<void> {
     }
     case 'telemetry-webhook': {
       const m = await import('./commands/telemetry-webhook');
+      m.run(rest);
+      break;
+    }
+    case 'telemetry-backfill': {
+      const m = await import('./commands/telemetry-backfill');
       m.run(rest);
       break;
     }

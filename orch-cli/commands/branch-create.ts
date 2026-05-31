@@ -18,6 +18,7 @@ import { mkdirSync, symlinkSync, existsSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { parseArgs, requireString, requireInt, flag, optionalString } from '../lib/argv';
 import { mainRepoRoot, currentWorktreeRoot, phaseWorktreePathForBranch } from '../lib/state';
+import { loadConfig } from '../lib/config';
 
 /** kebab-case 校验正则（仅小写字母数字和连字符） */
 const KEBAB_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -143,26 +144,40 @@ export function run(args: string[]): void {
 
   // phase 分支：基于 origin/main 创建独立 phase worktree
   const repoRoot = mainRepoRoot();
-  const worktreeContainer = join(dirname(repoRoot), '9zsyqss-worktrees');
   const phaseWorktreePath = phaseWorktreePathForBranch(branchName);
+  const worktreeContainer = dirname(phaseWorktreePath);
+
+  let linkNodeModules = false;
+  try {
+    const config = loadConfig();
+    linkNodeModules = !!config.linkNodeModules;
+  } catch {
+    // 降级兜底
+  }
 
   if (dryRun) {
+    const steps = [
+      `git fetch origin`,
+      `git branch ${branchName} origin/main`,
+      `mkdir -p ${worktreeContainer}`,
+      `git worktree add ${phaseWorktreePath} ${branchName}`,
+    ];
+    if (linkNodeModules && existsSync(join(repoRoot, 'node_modules'))) {
+      steps.push(`ln -s ${repoRoot}/node_modules ${phaseWorktreePath}/node_modules`);
+    }
+    steps.push(
+      `echo ${issueNumber} > ${phaseWorktreePath}/.orch-phase`,
+      `echo ${slug} > ${phaseWorktreePath}/.orch-current`,
+      `git push -u origin ${branchName}`,
+    );
+
     process.stdout.write(
       JSON.stringify({
         ok: true,
         dryRun: true,
         branchName,
         phaseWorktreePath,
-        steps: [
-          `git fetch origin`,
-          `git branch ${branchName} origin/main`,
-          `mkdir -p ${worktreeContainer}`,
-          `git worktree add ${phaseWorktreePath} ${branchName}`,
-          `ln -s ${repoRoot}/node_modules ${phaseWorktreePath}/node_modules`,
-          `echo ${issueNumber} > ${phaseWorktreePath}/.orch-phase`,
-          `echo ${slug} > ${phaseWorktreePath}/.orch-current`,
-          `git push -u origin ${branchName}`,
-        ],
+        steps,
         hint: `基于 origin/main 创建 phase 分支与独立 phase worktree`,
       }) + '\n'
     );
@@ -174,9 +189,14 @@ export function run(args: string[]): void {
     git(['branch', branchName, 'origin/main'], false);
     mkdirSync(worktreeContainer, { recursive: true });
     git(['worktree', 'add', phaseWorktreePath, branchName], false);
-    const nmLink = join(phaseWorktreePath, 'node_modules');
-    if (!existsSync(nmLink)) {
-      symlinkSync(join(repoRoot, 'node_modules'), nmLink, 'dir');
+    if (linkNodeModules) {
+      const nmSrc = join(repoRoot, 'node_modules');
+      if (existsSync(nmSrc)) {
+        const nmLink = join(phaseWorktreePath, 'node_modules');
+        if (!existsSync(nmLink)) {
+          symlinkSync(nmSrc, nmLink, 'dir');
+        }
+      }
     }
     writeFileSync(join(phaseWorktreePath, '.orch-phase'), `${issueNumber}\n`, 'utf8');
     writeFileSync(join(phaseWorktreePath, '.orch-current'), `${slug}\n`, 'utf8');

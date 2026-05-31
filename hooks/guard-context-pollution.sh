@@ -47,10 +47,14 @@ fi
 BLOCK_MSG=""
 
 if [ "$TOOL_NAME" = "Bash" ] || [ "$TOOL_NAME" = "run_command" ]; then
-    # 规则 1：完整 git diff
+    # 规则 1：完整 git diff / git show / git stash show
     if echo "$COMMAND" | grep -qE 'git diff'; then
         if ! echo "$COMMAND" | grep -qE '(--stat|--name-only|--name-status|--shortstat|--quiet)'; then
             BLOCK_MSG=$'⛔ 上下文防污染：禁止主进程直接读取完整的源码 git diff。\n   → 请委派子 subagent (如 Explore 或 Research) 执行详细代码分析。\n   → 合法用法：git diff --stat（仅查看修改文件列表）。\n   → 若此操作确实必要，可创建 .orch/ctx-bypass 文件（写明原因），然后重新运行。'
+        fi
+    elif echo "$COMMAND" | grep -qE 'git show|git stash show'; then
+        if ! echo "$COMMAND" | grep -qE '(--stat|--name-only|--name-status|--shortstat|--quiet)'; then
+            BLOCK_MSG=$'⛔ 上下文防污染：禁止主进程直接读取完整的 git show / git stash show 细节。\n   → 请使用 --stat 等过滤参数仅查看文件变更列表，或委派专职子 Agent 执行详细分析。\n   → 合法用法：git show --stat。\n   → 若此操作确实必要，可创建 .orch/ctx-bypass 文件（写明原因），然后重新运行。'
         fi
     fi
 
@@ -63,17 +67,35 @@ if [ "$TOOL_NAME" = "Bash" ] || [ "$TOOL_NAME" = "run_command" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Read" ] || [ "$TOOL_NAME" = "view_file" ]; then
-    # 规则 3：Read 原始大文件
+    # 规则 3：Read 原始大文件 (SVG/CSV/LOG/JSON 等，支持动态 largeFileExtensions)
     BASE_NAME=$(basename "$FILE_PATH")
     EXT="${BASE_NAME##*.}"
-    if [[ "$EXT" == "svg" || "$EXT" == "csv" || "$EXT" == "log" ]]; then
+    
+    # 动态从 config.json 获取并合并 largeFileExtensions
+    LARGE_EXTS=$(python3 -c "
+import json, sys
+try:
+    cfg = json.load(open(sys.argv[1]))
+    exts = cfg.get('largeFileExtensions') or []
+    print('|'.join(exts))
+except:
+    pass
+" "$CONFIG_PATH" 2>/dev/null)
+
+    if [ -n "$LARGE_EXTS" ]; then
+        EXT_PATTERN="svg|csv|log|json|$LARGE_EXTS"
+    else
+        EXT_PATTERN="svg|csv|log|json"
+    fi
+
+    if [[ "$EXT" =~ ^($EXT_PATTERN)$ ]]; then
         # 排除 10KB 以下的轻量级资源
         FILE_SIZE=0
         if [ -f "$FILE_PATH" ]; then
             FILE_SIZE=$(wc -c <"$FILE_PATH" | tr -d '[:space:]')
         fi
         if [ "$FILE_SIZE" -gt 10240 ]; then
-            BLOCK_MSG=$'⛔ 上下文防污染：大体量原始资源文件（SVG/CSV/LOG）禁止直接在主上下文 Read 读取。\n   → 请委派子 Agent 进行结构提取和精简，避免污染主进程 token 空间。'
+            BLOCK_MSG=$"⛔ 上下文防污染：大体量原始资源文件（SVG/CSV/LOG/JSON 等）禁止直接在主上下文 Read 读取。\n   → 请委派子 Agent 进行结构提取和精简，避免污染主进程 token 空间。"
         fi
     fi
 fi

@@ -4,23 +4,23 @@
 
 INPUT=$(cat)
 
-# 解析 tool_name 和 file_path
-PARSED=$(echo "$INPUT" | python3 -c "
-import sys, json
+# 解析 tool_name, file_path 和 command (利用 Python shlex.quote 和 eval 实现极其健壮的参数导入)
+eval "$(echo "$INPUT" | python3 -c "
+import sys, json, shlex
 try:
     data = json.load(sys.stdin)
     tool_name = data.get('tool_name') or ''
     ti = data.get('tool_input') or {}
     file_path = data.get('file_path') or ti.get('file_path') or ''
     command = data.get('command') or ti.get('command') or ''
-    print(tool_name + '|||' + file_path + '|||' + command)
+    print(f'TOOL_NAME={shlex.quote(tool_name)}')
+    print(f'FILE_PATH={shlex.quote(file_path)}')
+    print(f'COMMAND={shlex.quote(command)}')
 except Exception:
-    print('|||')
-" 2>/dev/null)
-
-TOOL_NAME=$(echo "$PARSED" | cut -d'|' -f1)
-FILE_PATH=$(echo "$PARSED" | cut -d'|' -f4)
-COMMAND=$(echo "$PARSED" | cut -d'|' -f7)
+    print('TOOL_NAME=\"\"')
+    print('FILE_PATH=\"\"')
+    print('COMMAND=\"\"')
+" 2>/dev/null)"
 
 # Read 类工具始终放行
 if [ "$TOOL_NAME" = "Read" ] || [ "$TOOL_NAME" = "view_file" ] || [ "$TOOL_NAME" = "list_dir" ] || [ "$TOOL_NAME" = "grep_search" ]; then

@@ -18,6 +18,8 @@
     }
   },
   "worktreeDir": "../name-worktrees",
+  "docsDir": "docs",
+  "moduleLabels": ["battle-core", "ui-view", "config-editor"],
   "commitTypes": [
     "功能",
     "修复",
@@ -31,6 +33,11 @@
     "src/",
     "scripts/"
   ],
+  "linkNodeModules": false,
+  "retro": {
+    "enabled": false
+  },
+  "largeFileExtensions": ["xml", "csv", "xlsx"],
   "workflowGates": {
     "intake": "block",
     "probing": "warn",
@@ -57,7 +64,8 @@
   "commands": {
     "lint": "npm run lint",
     "format": "npm run format",
-    "test": "npm run test"
+    "test": "npm run test",
+    "build": "npm run build"
   },
   "greenVerdict": {
     "successString": "tests passed successfully",

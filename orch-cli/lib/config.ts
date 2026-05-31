@@ -51,6 +51,11 @@ export interface ProjectConfig {
     targetConfigs?: string[];
   };
   migrationCheck?: boolean;
+  linkNodeModules?: boolean;
+  retro?: {
+    enabled?: boolean;
+  };
+  largeFileExtensions?: string[];
 }
 
 let loadedConfig: ProjectConfig | null = null;

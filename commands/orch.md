@@ -1,6 +1,6 @@
 ---
 description: 全生命周期自演进 AI 工程工作流编排插件。支持任何 GitHub 项目：需求准入准出 → 只读现状勘探 → 并发语义锁碰撞检测 → 方案 ADR 取舍 → 物理拦截编码 → 红蓝混沌负向安全防御 → PR 提单与 Release 规约 → Post-merge 交付校验 → 遥测闭环与规则编译器进化。
-argument-hint: "[<Phase issue URL 或编号>|confirm|status|resume|escalate <原因>|post-merge <Phase>]"
+argument-hint: "[<Phase issue URL 或编号>|confirm|status|resume|escalate <原因>|post-merge <Phase>] [--dry-run]"
 ---
 
 # /orch — 全生命周期 AI 工程工作流编排
@@ -27,6 +27,7 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
 - `/orch status` → 进度查询（打印当前 Phase 执行进度、效能 Metrics 与下一步指引）。
 - `/orch resume` → 恢复状态（读取当前 Phase 进度文件并重新输出路由指引）。
 - `/orch escalate <原因>` → 升级阻塞（创建 Decision Needed issue 并标记阻碍）。
+- **`--dry-run` 标志**：在任意命令后追加 `--dry-run`（如 `/orch 12 --dry-run`），将会在整个编排阶段的子命令底层均透传 `--dry-run` 标志，**仅打印将执行的拟态 JSON 与物理操作而不产生任何真实文件/Git/GitHub 物理副作用**。
 
 ---
 
@@ -210,11 +211,13 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" worktree-remove --phase-issue <phase_issue>
    ```
 4. **Retro 复盘与规则自演进编译器激活**：
-   - 派发 `retro` agent → 总结踩坑记录、根本原因、防错规则，产出 `docs/retro/retro-phase-<N>.md`。
-   - 派发 `guardrail-compiler` agent → 读取 retro，自动将踩坑规约编译为配置与钩子规则 diff，产出候选防御清单 `docs/retro/guardrail-candidate-diffs-<Phase>.md`。
-   - 运行规则演进 Dry-Run，输出候选 diff 待人类确认：
-     ```bash
-     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" guardrail-compile --phase-issue <phase_issue> --dry-run
-     ```
-   - 提示人类输入确认，以合入物理配置（`.orch/config.json` 及 Hooks 正则表达式），闭合全链路“自进化”研发环。
+   - **派发门控 (HARD RULE)**：**仅当项目配置中 `retro.enabled` 不为 `false` 时**，才启动 Retro 自演进：
+     - 派发 `retro` agent → 总结踩坑记录、根本原因、防错规则，产出 `docs/retro/retro-phase-<N>.md`。
+     - 派发 `guardrail-compiler` agent → 读取 retro，自动将踩坑规约编译为配置与钩子规则 diff，产出候选防御清单 `docs/retro/guardrail-candidate-diffs-<Phase>.md`。
+     - 运行规则演进 Dry-Run，输出候选 diff 待人类确认：
+       ```bash
+       node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" guardrail-compile --phase-issue <phase_issue> --dry-run
+       ```
+     - 提示人类输入确认，以合入物理配置（`.orch/config.json` 及 Hooks 正则表达式），闭合全链路“自进化”研发环。
+   - 若项目配置 `retro.enabled` 设为了 `false`，则在清理 worktree 后直接宣布 Phase 交付全面闭环，跳过并省略派发 Retro 与自演进编译器环节。
 

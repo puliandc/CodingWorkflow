@@ -35,11 +35,29 @@ export function run(args: string[]): void {
     process.exit(1);
   }
 
+  // 1.5. 物理对接：检查 retro.enabled 开关
+  if (config.retro?.enabled === false) {
+    process.stdout.write(
+      JSON.stringify({
+        ok: true,
+        skipped: true,
+        hint: "⚠️  [规则自愈编译器跳过] 项目配置中 config.retro.enabled 设为了 false，已关闭 Retro 自愈，优雅跳过不阻断主流程。"
+      }) + '\n'
+    );
+    process.exit(0);
+  }
+
   // 2. 确定并核对 retro 物理文件
   const retroPath = resolve(mainRepoRoot(), `docs/retro/retro-phase-${phaseIssue}.md`);
   if (!existsSync(retroPath)) {
-    process.stderr.write(`❌ 规则自愈编译器失败：找不到 Retro 复盘报告 docs/retro/retro-phase-${phaseIssue}.md\n`);
-    process.exit(1);
+    process.stdout.write(
+      JSON.stringify({
+        ok: true,
+        skipped: true,
+        hint: `⚠️  [规则自愈编译器跳过] 找不到 Retro 复盘报告 docs/retro/retro-phase-${phaseIssue}.md，本 Phase 可能未产出 Retro，优雅跳过不阻断主流程。`
+      }) + '\n'
+    );
+    process.exit(0);
   }
 
   const retroContent = readFileSync(retroPath, 'utf8');
@@ -47,16 +65,28 @@ export function run(args: string[]): void {
   // 3. 提取可编译 JSON 块
   const jsonMatch = retroContent.match(/```json\s*\n([\s\S]*?)\n\s*```/);
   if (!jsonMatch) {
-    process.stderr.write(`❌ 规则自愈编译器失败：Retro 报告中缺失 \`\`\`json 格式的候选规则章节！\n`);
-    process.exit(1);
+    process.stdout.write(
+      JSON.stringify({
+        ok: true,
+        skipped: true,
+        hint: `⚠️  [规则自愈编译器跳过] Retro 报告中缺失 \`\`\`json 格式的候选规则章节，优雅跳过不阻断主流程。`
+      }) + '\n'
+    );
+    process.exit(0);
   }
 
   let candidate: CandidateRule;
   try {
     candidate = JSON.parse(jsonMatch[1]) as CandidateRule;
   } catch (err) {
-    process.stderr.write(`❌ 规则自愈编译器失败：无法解析候选规则 JSON：${(err as Error).message}\n`);
-    process.exit(1);
+    process.stdout.write(
+      JSON.stringify({
+        ok: true,
+        skipped: true,
+        hint: `⚠️  [规则自愈编译器跳过] 无法解析候选规则 JSON: ${(err as Error).message}，优雅跳过不阻断主流程。`
+      }) + '\n'
+    );
+    process.exit(0);
   }
 
   // 4. 读取当前 config.json
