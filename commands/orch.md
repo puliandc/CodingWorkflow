@@ -75,25 +75,21 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage B
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" project-status --issue <sub_issue> --status "In progress"
    ```
-3. **派发架构设计梳理 (arch) agent**：
-   - 派发一个子 `Agent(subagent_type="arch")`。
-     - **Prompt 参数**：当前 Phase worktree 绝对路径（agent 必须先 `cd` 进去）、sub-issue URL 与正文、宏观 Phase issue 上下文、目标分支名、目标产物路径 `docs/<功能名>/phase-<N>/<sub>/arch.md`。
-     - **强力约束**：要求严格产出「架构契约三表」且回归护栏必须非空，否则必须拒绝交付。
-4. **生成占位测试方案并提交文档**：
-   - 临时生成测试占位文件以通过 commit-docs 的机械式强校验：
-     ```bash
-     mkdir -p docs/<功能名>/phase-<N>/<sub>/
-     echo "# 测试方案" > docs/<功能名>/phase-<N>/<sub>/test.md
-     ```
-   - 执行提交并推送文档命令：
+3. **派发架构与设计梳理 (B 阶段) (HARD RULE)**：
+   - 依次派发以下子 agents，各司其职，禁止并行写入相同文件：
+     - `arch` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/arch.md`（约束：架构契约三表且回归护栏不能为空）。
+     - `test` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/test.md`（包含验收用例清单与回归校验方案；Prompt 中必须包含已生成的 `arch.md` 路径以进行参考）。
+     - 仅当 sub-issue 标有 `needs-ui` 标签时，派发 `design` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/design.md`（包含判定类型的「设计验收与量测清单」Markdown 表格）。
+4. **提交设计文档契约**：
+   - 在所有的设计文档落盘就绪后，执行提交并推送文档命令：
      ```bash
      node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage B
      ```
 5. **【人工确认节点 2】**（AskUserQuestion 弹窗确认）：
-   - 展示契约文档并询问：`sub-issue #N 的架构契约已生成：docs/<功能名>/phase-<N>/<sub>/arch.md。是否允许进入编码？`
+   - 展示契约文档并询问：`sub-issue #N 的三方设计契约已生成。是否允许进入编码？`
    - 选项：
      - `继续` → 进入阶段 C（编码）
-     - `重新设计` → 回到当前步骤重新派发 `arch`
+     - `重新设计` → 回到当前步骤重新派发设计 agents
      - `跳过` → 将该子任务在状态文件及看板标记为 Done/merged，继续串行推进下一个 sub-issue
 
 ---
@@ -123,17 +119,12 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage D
    ```
-2. **派发测试验收 (test) agent**：
-   - 派发一个子 `Agent(subagent_type="test")`。
-     - **Prompt 参数**：当前 Phase worktree 绝对路径（agent 必须先 `cd` 进去）、sub-issue 编号、测试方案 `docs/<功能名>/phase-<N>/<sub>/test.md` 路径、目标产物路径 `docs/<功能名>/phase-<N>/<sub>/test-report.md`。
-     - **强力约束**：要求必须在 worktree 跑测试并调用 `gate` 门禁执行真绿判定，产出包含三硬指标的格式化测试报告。
-3. **生成占位审查报告并提交验收文档**：
-   - 临时生成占位的 review 报告以通过 `commit-docs --stage D` 的机械式强校验（在 Issue #8 接入真正的 review agent 之前）：
-     ```bash
-     mkdir -p docs/<功能名>/phase-<N>/<sub>/
-     echo "PASS" > docs/<功能名>/phase-<N>/<sub>/review-report.md
-     ```
-   - 运行提交推送验收文档指令：
+2. **派发测试与代码审查验收 (D 阶段) (HARD RULE)**：
+   - 一条消息内并行派发以下子 agents，互不干扰：
+     - `test` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/test-report.md`（要求：在 worktree 跑测试，调用 gate 进行真绿判定）。
+     - `review` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/review-report.md`（约束：核对白名单越界、对齐 UI 验收与量测清单并区分目视项）。
+3. **提交验收文档报告**：
+   - 在两份报告全 PASS 且成功生成后，立即运行提交命令：
      ```bash
      node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage D
      ```
