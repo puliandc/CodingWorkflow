@@ -22,6 +22,7 @@ const COMMANDS: Record<string, string> = {
   'pr-create-phase':   '为 Phase 整体创建 PR（base: main）',
   'commit-docs':       '提交 sub-issue 当前阶段文档（B：三文件 / D：验收报告）并推送',
   'worktree-remove':   '清理 Phase 的本地 worktree 与分支（Phase PR 合并后调用）',
+  'gate':              '执行 lint/format/test 并进行真绿/伪绿三硬判定',
 };
 
 /**
@@ -107,6 +108,11 @@ async function main(): Promise<void> {
     }
     case 'worktree-remove': {
       const m = await import('./commands/worktree-remove');
+      m.run(rest);
+      break;
+    }
+    case 'gate': {
+      const m = await import('./commands/gate');
       m.run(rest);
       break;
     }

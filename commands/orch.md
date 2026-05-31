@@ -113,8 +113,25 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
 
 ### 阶段 D：验收阶段
 
-1. 在 MVP 阶段，本步骤跳过具体的质量报告审核与校验，默认直接 PASS 即可。
-2. 更新进度至阶段 E。
+1. 更新进度文件：
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage D
+   ```
+2. **派发测试验收 (test) agent**：
+   - 派发一个子 `Agent(subagent_type="test")`。
+     - **Prompt 参数**：当前 Phase worktree 绝对路径（agent 必须先 `cd` 进去）、sub-issue 编号、测试方案 `docs/<功能名>/phase-<N>/<sub>/test.md` 路径、目标产物路径 `docs/<功能名>/phase-<N>/<sub>/test-report.md`。
+     - **强力约束**：要求必须在 worktree 跑测试并调用 `gate` 门禁执行真绿判定，产出包含三硬指标的格式化测试报告。
+3. **生成占位审查报告并提交验收文档**：
+   - 临时生成占位的 review 报告以通过 `commit-docs --stage D` 的机械式强校验（在 Issue #8 接入真正的 review agent 之前）：
+     ```bash
+     mkdir -p docs/<功能名>/phase-<N>/<sub>/
+     echo "PASS" > docs/<功能名>/phase-<N>/<sub>/review-report.md
+     ```
+   - 运行提交推送验收文档指令：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage D
+     ```
+4. 检查 `🚨 NEEDS_USER_INPUT` 信号并推进至阶段 E。
 
 ---
 
