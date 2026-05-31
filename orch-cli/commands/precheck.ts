@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseArgs, requireInt, flag } from '../lib/argv';
@@ -174,10 +174,46 @@ export function run(args: string[]): void {
     process.exit(1);
   }
 
+  // ----------------------------------------------------
+  // [NEW] APM 遥测热异常自动反哺回灌到 arch.md
+  // ----------------------------------------------------
+  const latestHotfixPath = resolve(mainRepoRoot(), '.orch/contracts/latest-hotfix.json');
+  let currentArchContent = archContent;
+  if (existsSync(latestHotfixPath)) {
+    try {
+      const rawHotfix = readFileSync(latestHotfixPath, 'utf8');
+      const hotfixData = JSON.parse(rawHotfix);
+      const isHotfixPhase = state.phaseBranch.includes('hotfix') || state.featureName.includes('hotfix');
+      
+      if (isHotfixPhase && hotfixData.fatalStacktrace) {
+        const stackFirstLine = hotfixData.fatalStacktrace.split('\n')[0].trim();
+        const guardKey = `确认不触发: ${stackFirstLine.slice(0, 60)}`;
+        
+        if (!archContent.includes(guardKey)) {
+          process.stdout.write(`🧬 [APM 遥测自愈热灌溉] 检测到最新运行时异常，正在物理回灌至 arch.md...\n`);
+          
+          const newGuardLine = `\n| APM遥测自愈 | ${guardKey} | 必须通过 gate 且不再触发此 APM 遥测异常 |`;
+          
+          const matchTable = archContent.match(/(#### \[契约\] 回归护栏[\s\S]*?)(?=\n#+|\Z)/);
+          if (matchTable) {
+            const tableSection = matchTable[1].trim();
+            const upgradedTableSection = tableSection + newGuardLine;
+            currentArchContent = archContent.replace(tableSection, upgradedTableSection);
+            
+            writeFileSync(archPath, currentArchContent, 'utf8');
+            process.stdout.write(`🎉 [APM 物理灌溉成功] 已自动把生产异常堆栈特征物理灌入回归护栏表！\n`);
+          }
+        }
+      }
+    } catch (err) {
+      process.stderr.write(`⚠️ [APM回灌警告] 无法物理回灌 latest-hotfix.json: ${(err as Error).message}\n`);
+    }
+  }
+
   // 2. 提取契约三表
   let extracted;
   try {
-    extracted = parseArchContracts(archContent);
+    extracted = parseArchContracts(currentArchContent);
   } catch (err) {
     process.stderr.write(`❌ 门禁拦截：契约文件结构损坏，${(err as Error).message}\n`);
     process.exit(1);

@@ -79,6 +79,7 @@ export function run(args: string[]): void {
   let mutated = false;
   const originalKeywords = [...(currentConfig.greenVerdict?.errorKeywords || [])];
   const originalPaths = [...(currentConfig.whitelistEnforcePaths || [])];
+  const originalHooks = [...(currentConfig.preToolUseHooks || [])];
 
   // 合并 errorKeywords
   if (candidate.greenVerdict?.errorKeywords) {
@@ -109,10 +110,27 @@ export function run(args: string[]): void {
     }
   }
 
+  // 合并 preToolUseHooks 物理写入
+  if (candidate.preToolUseHooks) {
+    if (!Array.isArray(currentConfig.preToolUseHooks)) {
+      currentConfig.preToolUseHooks = [];
+    }
+    for (const hook of candidate.preToolUseHooks) {
+      if (hook && hook.pattern) {
+        const exists = currentConfig.preToolUseHooks.some((h: any) => h.pattern === hook.pattern);
+        if (!exists) {
+          currentConfig.preToolUseHooks.push(hook);
+          mutated = true;
+        }
+      }
+    }
+  }
+
   // 6. 输出 diff 报告
   if (dryRun) {
     const diffKeywords = (currentConfig.greenVerdict?.errorKeywords || []).filter((kw: string) => !originalKeywords.includes(kw));
     const diffPaths = (currentConfig.whitelistEnforcePaths || []).filter((p: string) => !originalPaths.includes(p));
+    const diffHooks = (currentConfig.preToolUseHooks || []).filter((h: any) => !originalHooks.some((oh: any) => oh.pattern === h.pattern));
 
     process.stdout.write(
       JSON.stringify({
@@ -122,12 +140,12 @@ export function run(args: string[]): void {
         diffs: {
           addedKeywords: diffKeywords,
           addedPaths: diffPaths,
-          addedHooks: candidate.preToolUseHooks || [],
+          addedHooks: diffHooks,
         },
         hint: `🧬 [自进化 rules compiler (Dry-Run)]\n` +
           `- 新增真绿报错词: ${diffKeywords.length > 0 ? diffKeywords.join(', ') : '无'}\n` +
           `- 新增拦截敏感路径: ${diffPaths.length > 0 ? diffPaths.join(', ') : '无'}\n` +
-          `- 新增 pre-tool-use 正则拦截: ${(candidate.preToolUseHooks || []).length}个\n\n` +
+          `- 新增 pre-tool-use 正则拦截: ${diffHooks.length > 0 ? diffHooks.map((h: any) => h.pattern).join(', ') : '无'}\n\n` +
           `请核对上述防御规则是否合理。若要物理合入，请执行以下命令完成系统免疫升级：\n` +
           `npm run orch -- guardrail-compile --phase-issue ${phaseIssue} --confirm`,
       }) + '\n'
@@ -137,6 +155,12 @@ export function run(args: string[]): void {
 
   // 7. 物理合入落盘
   if (mutated) {
+    // 严格检查 allowAutoRewrite 安全红线阻断
+    if (config.guardrailCompiler?.allowAutoRewrite === false) {
+      process.stderr.write(`❌ 规则自愈编译器阻断：项目配置 guardrailCompiler.allowAutoRewrite 设为了 false，安全机制严禁自动化编译脚本强行重写修改配置文件！请手动将其合并入 ${configPath}\n`);
+      process.exit(1);
+    }
+
     try {
       writeFileSync(configPath, JSON.stringify(currentConfig, null, 2) + '\n', 'utf8');
     } catch (err) {
@@ -150,7 +174,7 @@ export function run(args: string[]): void {
       ok: true,
       confirmed: true,
       mutated,
-      hint: `🎉 [系统免疫升级成功] 已成功将 Phase #${phaseIssue} 的防错规则物理合并写入项目配置 ${configPath}！\n系统防御属性已自动自适应提升。`,
+      hint: `🎉 [系统免疫升级成功] 已成功将 Phase #${phaseIssue} 的防错与正则拦截规则（PreToolUseHooks）物理合并写入项目配置 ${configPath}！\n系统防御属性已自动自适应提升。`,
     }) + '\n'
   );
 }

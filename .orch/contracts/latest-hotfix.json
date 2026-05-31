@@ -1,0 +1,8 @@
+{
+  "fatalStacktrace": "NullPointerException: Cannot read property 'token' of undefined\n  at parseToken (src/utils.ts:12)",
+  "errorMessage": "NPE in parsing assets",
+  "featureModule": "auth-module",
+  "traceId": "t-992182-xyz",
+  "timestamp": 1780215608786,
+  "issueTitle": "🚨 运行时高危崩溃热诊断 Issue — phase-hotfix-#08786"
+}

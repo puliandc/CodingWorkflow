@@ -78,6 +78,31 @@ if [ "$TOOL_NAME" = "Read" ] || [ "$TOOL_NAME" = "view_file" ]; then
     fi
 fi
 
+# 动态校验并拦截由 guardrail compiler 自动编译进 config.json 的 preToolUseHooks 正则拦截规则
+DYNAMIC_BLOCK_MSG=$(python3 -c "
+import json, re, sys
+config_path = sys.argv[1]
+tool_name = sys.argv[2]
+file_path = sys.argv[3]
+command = sys.argv[4]
+try:
+    cfg = json.load(open(config_path))
+    hooks = cfg.get('preToolUseHooks') or []
+    for hook in hooks:
+        pattern = hook.get('pattern')
+        explanation = hook.get('explanation') or '命中自进化防错规则'
+        if pattern:
+            if re.search(pattern, command, re.IGNORECASE) or re.search(pattern, file_path, re.IGNORECASE):
+                print('⛔ [自演进规则物理拦截] 命中了已编译防错正则规则：' + pattern + '\n   → 阻断原因：' + explanation)
+                sys.exit(0)
+except:
+    pass
+" "$CONFIG_PATH" "$TOOL_NAME" "$FILE_PATH" "$COMMAND" 2>/dev/null)
+
+if [ ! -z "$DYNAMIC_BLOCK_MSG" ]; then
+    BLOCK_MSG="$DYNAMIC_BLOCK_MSG"
+fi
+
 # 未命中任何规则，允许放行
 if [ -z "$BLOCK_MSG" ]; then
     exit 0

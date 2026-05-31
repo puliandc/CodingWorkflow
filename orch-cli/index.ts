@@ -162,7 +162,7 @@ async function main(): Promise<void> {
     }
     case 'post-merge': {
       const m = await import('./commands/post-merge');
-      m.run(rest);
+      await m.run(rest);
       break;
     }
     case 'telemetry-webhook': {

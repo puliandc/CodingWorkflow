@@ -130,6 +130,23 @@ export function run(args: string[]): void {
     createdIssueUrl = mockIssuePath;
   }
 
+  // 物理将最新的 Telemetry 热故障数据持久化到全局 contracts 目录下，供 precheck 节点自动回灌
+  const latestHotfixPath = resolve(mainRepoRoot(), '.orch/contracts/latest-hotfix.json');
+  try {
+    mkdirSync(dirname(latestHotfixPath), { recursive: true });
+    writeFileSync(latestHotfixPath, JSON.stringify({
+      fatalStacktrace: payload.fatalStacktrace,
+      errorMessage,
+      featureModule,
+      traceId,
+      timestamp: parseInt(timestamp, 10),
+      issueTitle
+    }, null, 2) + '\n', 'utf8');
+    process.stdout.write(`📡 [APM 遥测持久化] 已物理更新全局最新热故障快照: ${latestHotfixPath}\n`);
+  } catch (err) {
+    process.stderr.write(`⚠️ [APM热闭环警报] 无法写入 latest-hotfix.json: ${(err as Error).message}\n`);
+  }
+
   process.stdout.write(
     JSON.stringify({
       ok: true,

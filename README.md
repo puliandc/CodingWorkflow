@@ -29,7 +29,7 @@ CodingWorkflow/
 │   └── orch.md             # slash command /orch 编排状态机 (全生命周期骨架)
 ├── agents/
 │   ├── triage.md           # [NEW] 需求准入 Agent (产出 intake.md)
-│   ├── discovery.md        # [NEW] 现状只读勘探 Agent (产出 discovery-report.md)
+│   ├── probing.md          # [NEW] 现状只读勘探 Agent (产出 probing-report.md)
 │   ├── arch.md             # 架构梳理 Agent (产出白名单、冻结表、ADR决策与回归护栏)
 │   ├── adr.md              # [NEW] 方案对比 Agent (并入或独立产出方案取舍记录)
 │   ├── design.md           # UI设计 Agent (产出量测清单)
