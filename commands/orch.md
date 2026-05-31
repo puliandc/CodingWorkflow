@@ -64,7 +64,7 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
 
 ---
 
-### 阶段 B：当前 sub-issue 准备阶段
+### 阶段 B：当前 sub-issue 准备与设计阶段
 
 1. 在当前 phase worktree 下创建 sub-issue 分支：
    ```bash
@@ -75,7 +75,26 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" state-advance --sub <sub_issue> --status in_progress --stage B
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" project-status --issue <sub_issue> --status "In progress"
    ```
-3. 在 MVP 阶段，本步骤不执行 arch/test/design 等三文件，直接将状态推进至阶段 C 即可。
+3. **派发架构设计梳理 (arch) agent**：
+   - 派发一个子 `Agent(subagent_type="arch")`。
+     - **Prompt 参数**：当前 Phase worktree 绝对路径（agent 必须先 `cd` 进去）、sub-issue URL 与正文、宏观 Phase issue 上下文、目标分支名、目标产物路径 `docs/<功能名>/phase-<N>/<sub>/arch.md`。
+     - **强力约束**：要求严格产出「架构契约三表」且回归护栏必须非空，否则必须拒绝交付。
+4. **生成占位测试方案并提交文档**：
+   - 临时生成测试占位文件以通过 commit-docs 的机械式强校验：
+     ```bash
+     mkdir -p docs/<功能名>/phase-<N>/<sub>/
+     echo "# 测试方案" > docs/<功能名>/phase-<N>/<sub>/test.md
+     ```
+   - 执行提交并推送文档命令：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage B
+     ```
+5. **【人工确认节点 2】**（AskUserQuestion 弹窗确认）：
+   - 展示契约文档并询问：`sub-issue #N 的架构契约已生成：docs/<功能名>/phase-<N>/<sub>/arch.md。是否允许进入编码？`
+   - 选项：
+     - `继续` → 进入阶段 C（编码）
+     - `重新设计` → 回到当前步骤重新派发 `arch`
+     - `跳过` → 将该子任务在状态文件及看板标记为 Done/merged，继续串行推进下一个 sub-issue
 
 ---
 
