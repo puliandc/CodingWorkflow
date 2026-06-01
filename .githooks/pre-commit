@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# 兜底：当 orch-cli 源码(.ts)被暂存时，自动重建并纳入 dist，防止源码/产物漂移。
+# 启用方式（每个 clone 执行一次）：git config core.hooksPath .githooks
+set -euo pipefail
+
+staged_ts=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '^orch-cli/.*\.ts$' | grep -v '^orch-cli/dist/' || true)
+
+# 没有源码改动则不干预
+[ -z "$staged_ts" ] && exit 0
+
+echo "[pre-commit] 检测到 orch-cli 源码改动，重建 dist…"
+if ! ( cd orch-cli && npm run build >/dev/null 2>&1 ); then
+  echo "[pre-commit] ❌ tsc 构建失败（或未 npm install），已中止提交。请修复后重试。" >&2
+  exit 1
+fi
+
+git add orch-cli/dist
+echo "[pre-commit] ✅ dist 已重建并纳入本次提交。"
+exit 0
