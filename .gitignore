@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# 例外：orch-cli/dist 是随 plugin 分发的编译产物，必须入库
+!orch-cli/dist/
 .orch/config.json
 .orch/phases/
 *.tmp

@@ -1,0 +1,109 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.run = run;
+const node_fs_1 = require("node:fs");
+const node_path_1 = require("node:path");
+const argv_1 = require("../lib/argv");
+const state_1 = require("../lib/state");
+const config_1 = require("../lib/config");
+/**
+ * contract-register 子命令：登记当前 sub-issue 契约白名单和冻结表
+ */
+function run(args) {
+    const parsed = (0, argv_1.parseArgs)(args);
+    const subNumber = (0, argv_1.requireInt)(parsed, 'sub', '缺少必需参数：--sub <sub-issue 编号>');
+    const dryRun = (0, argv_1.flag)(parsed, 'dry-run');
+    // 1. 加载配置与状态
+    let config;
+    let state;
+    try {
+        config = (0, config_1.loadConfig)();
+        state = (0, state_1.loadState)();
+    }
+    catch (err) {
+        process.stderr.write(`❌ 注册契约失败：${err.message}\n`);
+        process.exit(1);
+    }
+    if (dryRun) {
+        const registryRelPath = config.contractRegistry?.path || '.orch/contracts/registry.json';
+        const registryPath = (0, node_path_1.resolve)((0, state_1.mainRepoRoot)(), registryRelPath);
+        process.stdout.write(JSON.stringify({
+            ok: true,
+            dryRun: true,
+            subIssue: subNumber,
+            registryPath,
+            hint: `[Dry-Run] 将登记 sub-issue #${subNumber} 契约 (白名单与冻结表)`,
+        }) + '\n');
+        return;
+    }
+    // 2. 确定 arch.md 契约路径
+    const phaseBranch = state.phaseBranch;
+    const phaseMatch = phaseBranch.match(/^phase-(\d+)-/);
+    if (!phaseMatch) {
+        process.stderr.write(`❌ 注册契约失败：无法从分支名 ${phaseBranch} 解析 Phase 编号\n`);
+        process.exit(1);
+    }
+    const phaseNumber = parseInt(phaseMatch[1], 10);
+    const archPath = (0, node_path_1.resolve)(process.cwd(), `docs/${state.featureName}/phase-${phaseNumber}/${subNumber}/arch.md`);
+    if (!(0, node_fs_1.existsSync)(archPath)) {
+        process.stderr.write(`❌ 注册契约失败：契约文件不存在，请先派发 arch agent：${archPath}\n`);
+        process.exit(1);
+    }
+    // 3. 解析契约三表
+    let contracts;
+    try {
+        const content = (0, node_fs_1.readFileSync)(archPath, 'utf8');
+        contracts = (0, state_1.parseArchContracts)(content);
+    }
+    catch (err) {
+        process.stderr.write(`❌ 解析契约失败：${err.message}\n`);
+        process.exit(1);
+    }
+    // 4. 定位并读取全局 registry
+    const registryRelPath = config.contractRegistry?.path || '.orch/contracts/registry.json';
+    const registryPath = (0, node_path_1.resolve)((0, state_1.mainRepoRoot)(), registryRelPath);
+    // 读取或创建全局看板
+    let registry = { activeContracts: [] };
+    if ((0, node_fs_1.existsSync)(registryPath)) {
+        try {
+            const raw = (0, node_fs_1.readFileSync)(registryPath, 'utf8');
+            registry = JSON.parse(raw);
+            if (!Array.isArray(registry.activeContracts)) {
+                registry.activeContracts = [];
+            }
+        }
+        catch {
+            // 损坏时重置
+            registry = { activeContracts: [] };
+        }
+    }
+    // 移除该 sub-issue 已存的旧活跃记录（保持幂等）
+    registry.activeContracts = registry.activeContracts.filter(c => !(c.subIssue === subNumber && c.phaseIssue === state.phaseIssue));
+    // 写入新纪录
+    const newContract = {
+        subIssue: subNumber,
+        branchName: `sub-${subNumber}`,
+        phaseIssue: state.phaseIssue,
+        whitelist: contracts.whitelist,
+        frozen: contracts.frozen,
+        timestamp: Date.now(),
+    };
+    registry.activeContracts.push(newContract);
+    // 落盘保存
+    try {
+        (0, node_fs_1.mkdirSync)((0, node_path_1.dirname)(registryPath), { recursive: true });
+        (0, node_fs_1.writeFileSync)(registryPath, JSON.stringify(registry, null, 2) + '\n', 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`❌ 全局契约看板写入失败：${err.message}\n`);
+        process.exit(1);
+    }
+    process.stdout.write(JSON.stringify({
+        ok: true,
+        subIssue: subNumber,
+        whitelistCount: contracts.whitelist.length,
+        frozenCount: contracts.frozen.length,
+        registryFile: registryRelPath,
+        hint: `🎉 成功将 sub-issue #${subNumber} 的契约注册至全局契约看板！[白名单: ${contracts.whitelist.length}项 ∧ 冻结表: ${contracts.frozen.length}项]`,
+    }) + '\n');
+}
