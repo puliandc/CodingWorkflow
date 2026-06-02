@@ -63,3 +63,35 @@ tools: Read, Bash, Grep
 ## 🚫 混沌门禁拦截对接 (Chaos-Gate)
 
 - 凡报告中出现 **P0 阻断**（如存在 Crash 隐患、缺 Fallback 保护、异常被静默吞噬），`chaos-gate` 门禁将在 PR 阶段自动拦截，退出码为非 0。这会强制中止合入，将断点回退给 `coding` 智能体进行热自愈。
+
+---
+
+## 📋 机器可读裁决块（VERDICT，必填）
+
+报告末尾**必须**输出如下 HTML 注释裁决块，`chaos-gate` 门禁将优先消费此块决策放行/拦截，文本匹配为兜底兼容：
+
+```
+<!-- VERDICT
+{"gate":"chaos","verdict":"block|pass|warn","severity":"P0|P1|P2","findings":["发现项1","发现项2"]}
+-->
+```
+
+字段说明：
+- `gate`：固定为 `"chaos"`
+- `verdict`：**必填**，枚举值之一：`"block"`（阻断）| `"pass"`（通过）| `"warn"`（警告放行）
+- `severity`：可选，最高风险级别，如 `"P0"`、`"P1"`、`"P2"`
+- `findings`：可选，字符串数组，列举关键发现项
+
+示例（阻断）：
+```
+<!-- VERDICT
+{"gate":"chaos","verdict":"block","severity":"P0","findings":["payment.ts:L45 异常静默吞噬","api.ts:L12 缺失超时控制"]}
+-->
+```
+
+示例（通过）：
+```
+<!-- VERDICT
+{"gate":"chaos","verdict":"pass","severity":"P2","findings":[]}
+-->
+```

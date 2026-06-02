@@ -6,6 +6,7 @@ const node_path_1 = require("node:path");
 const argv_1 = require("../lib/argv");
 const state_1 = require("../lib/state");
 const config_1 = require("../lib/config");
+const verdict_1 = require("../lib/verdict");
 /**
  * release-check 子命令：审计生产部署与一键回退 Runbook
  */
@@ -63,6 +64,53 @@ function run(args) {
     }
     // 3. 审计报告内容
     const content = (0, node_fs_1.readFileSync)(reportPath, 'utf8');
+    // 优先消费结构化 VERDICT 块
+    const verdictResult = (0, verdict_1.parseVerdict)(content);
+    if (verdictResult !== null) {
+        // 找到了 VERDICT 块（合法或非法）
+        if (verdictResult.status === 'invalid') {
+            // VERDICT 块存在但非法 → 门禁必须失败，绝不放行
+            const errorMsg = `❌ 发布门禁拦截：docs/release/release-plan-${subNumber}.md 含有非法 VERDICT 块，无法解析裁决——${verdictResult.reason}\n`;
+            process.stderr.write(errorMsg + '请修正报告中的 VERDICT 块后重试！\n');
+            process.exit(1);
+        }
+        // verdictResult.status === 'ok'
+        const { verdict } = verdictResult.verdict;
+        if (verdict === 'block') {
+            const findings = verdictResult.verdict.findings?.join('；') ?? '';
+            const errorMsg = `❌ 发布门禁拦截：docs/release/release-plan-${subNumber}.md VERDICT=block，发布计划未通过裁决！${findings ? `\n  发现项：${findings}` : ''}\n`;
+            if (releasePolicy === 'block') {
+                process.stderr.write(errorMsg + '上线前的最后一公里必须有灰度与一键回退 Runbook 保障！\n');
+                process.exit(1);
+            }
+            else {
+                process.stdout.write(JSON.stringify({
+                    ok: true,
+                    passed: true,
+                    warning: true,
+                    hint: `⚠️ [P1 警告] ${errorMsg}`,
+                }) + '\n');
+                return;
+            }
+        }
+        if (verdict === 'warn') {
+            process.stdout.write(JSON.stringify({
+                ok: true,
+                passed: true,
+                warning: true,
+                hint: `⚠️ [P1 警告] docs/release/release-plan-${subNumber}.md VERDICT=warn，发布计划存在隐患，建议优化后合入。`,
+            }) + '\n');
+            return;
+        }
+        // verdict === 'pass'
+        process.stdout.write(JSON.stringify({
+            ok: true,
+            passed: true,
+            hint: '🎉 部署发布与生产一键回退 Runbook 审计通过（VERDICT=pass）！FF/灰度/回滚机制完善，允许提单 PR。',
+        }) + '\n');
+        return;
+    }
+    // 无 VERDICT 块 → 兜底：回退现有存在性检查逻辑（向后兼容）
     // 必须断言有 Feature Flag 描述
     if (!content.includes('Feature Flag') && !content.includes('FF_')) {
         const errorMsg = `❌ 发布门禁拦截：docs/release/release-plan-${subNumber}.md 缺失 Feature Flag 功能开关命名与灰度计划！\n`;

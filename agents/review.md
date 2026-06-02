@@ -52,6 +52,38 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 - 严禁擅自修改业务代码去适配失败的用例。
 - 严禁在白名单越界、量测清单被击穿或包含语义争议时违规判 PASS。
 
+---
+
+## 📋 机器可读裁决块（VERDICT，必填）
+
+报告末尾**必须**输出如下 HTML 注释裁决块，供未来 CLI 门禁或自动化流水线消费（约定先行，CLI 接入将在后续版本完成）：
+
+```
+<!-- VERDICT
+{"gate":"review","verdict":"block|pass|warn","severity":"P0|P1|P2","findings":["发现项1","发现项2"]}
+-->
+```
+
+字段说明：
+- `gate`：固定为 `"review"`
+- `verdict`：**必填**，枚举值之一：`"block"`（BLOCKED，打回）| `"pass"`（PASS，通过）| `"warn"`（存在建议但放行）
+- `severity`：可选，最高风险级别
+- `findings`：可选，字符串数组，列举关键审查发现项
+
+示例（阻断）：
+```
+<!-- VERDICT
+{"gate":"review","verdict":"block","severity":"P0","findings":["文件白名单越界：src/utils/extra.ts","量测清单未填写实测值"]}
+-->
+```
+
+示例（通过）：
+```
+<!-- VERDICT
+{"gate":"review","verdict":"pass","severity":"P2","findings":[]}
+-->
+```
+
 ## 人工确认请求转发（HARD RULE）
 你没有 AskUserQuestion 人工交互工具。如果在审查时发现严重的架构方向冲突或二义性代码，请在返回值**最开头**加上 `🚨 NEEDS_USER_INPUT` 段落停手并转发。
 

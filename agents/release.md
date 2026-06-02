@@ -67,4 +67,36 @@ tools: Read
 
 ## 🚫 拦截门禁对接 (Release-Check)
 
-- 如果你的 `release-plan-<Phase>.md` 产出中缺失“Feature Flag 命名与开关”、“代码一键回滚命令”或“数据回滚补偿 SQL（在 db-migration 标签下）”，`release-check` 门禁将在 Phase PR 合并前将其判定为 **P0 阻断**。物理阻止代码合入主干，堵死“带病发布、无备上线”的高风险漏洞。
+- 如果你的 `release-plan-<Phase>.md` 产出中缺失”Feature Flag 命名与开关”、”代码一键回滚命令”或”数据回滚补偿 SQL（在 db-migration 标签下）”，`release-check` 门禁将在 Phase PR 合并前将其判定为 **P0 阻断**。物理阻止代码合入主干，堵死”带病发布、无备上线”的高风险漏洞。
+
+---
+
+## 📋 机器可读裁决块（VERDICT，必填）
+
+报告末尾**必须**输出如下 HTML 注释裁决块，`release-check` 门禁将优先消费此块决策放行/拦截，存在性文本检查为兜底兼容：
+
+```
+<!-- VERDICT
+{“gate”:”release”,”verdict”:”block|pass|warn”,”severity”:”P0|P1|P2”,”findings”:[“发现项1”,”发现项2”]}
+-->
+```
+
+字段说明：
+- `gate`：固定为 `”release”`
+- `verdict`：**必填**，枚举值之一：`”block”`（阻断）| `”pass”`（通过）| `”warn”`（警告放行）
+- `severity`：可选，最高风险级别，如 `”P0”`、`”P1”`
+- `findings`：可选，字符串数组，列举关键发现项
+
+示例（阻断）：
+```
+<!-- VERDICT
+{“gate”:”release”,”verdict”:”block”,”severity”:”P0”,”findings”:[“缺失 Feature Flag 命名”,”缺少数据回滚 SQL”]}
+-->
+```
+
+示例（通过）：
+```
+<!-- VERDICT
+{“gate”:”release”,”verdict”:”pass”,”severity”:”P2”,”findings”:[]}
+-->
+```
