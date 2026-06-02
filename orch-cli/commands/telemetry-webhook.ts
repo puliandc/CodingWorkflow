@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { parseArgs, requireString, flag } from '../lib/argv';
 import { mainRepoRoot } from '../lib/state';
 import { loadConfig } from '../lib/config';
+import { gh } from '../lib/gh';
 
 interface ApmPayload {
   fatalStacktrace: string;
@@ -100,23 +100,18 @@ export function run(args: string[]): void {
   process.stdout.write(`⏳ 正在通过 GitHub API 自动拉起故障 Hotfix 诊断 Issue...\n`);
   let createdIssueUrl = '';
   try {
-    const rawOut = execFileSync(
-      'gh',
-      [
-        'issue',
-        'create',
-        '--title',
-        issueTitle,
-        '--body',
-        replacedBody,
-        '--label',
-        'hotfix',
-        '--label',
-        'observability-breach',
-      ],
-      { encoding: 'utf8' }
-    );
-    createdIssueUrl = rawOut.trim();
+    createdIssueUrl = gh([
+      'issue',
+      'create',
+      '--title',
+      issueTitle,
+      '--body',
+      replacedBody,
+      '--label',
+      'hotfix',
+      '--label',
+      'observability-breach',
+    ]);
   } catch (err) {
     // 降级兜底：本地测试时若缺 token，将 Issue 保存为本地诊断文档，不直接崩溃进程
     const mockIssuePath = resolve(mainRepoRoot(), `docs/triage/hotfix-diagnostic-#${timestamp.slice(-5)}.md`);

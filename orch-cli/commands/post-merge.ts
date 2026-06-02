@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { parseArgs, requireInt, flag } from '../lib/argv';
 import { loadState, mainRepoRoot } from '../lib/state';
 import { loadConfig } from '../lib/config';
+import { gh } from '../lib/gh';
 
 /**
  * post-merge 子命令：PR 合并后的交付级自动化确认 (生产强闭环级)
@@ -106,7 +107,7 @@ export async function run(args: string[]): Promise<void> {
   process.stdout.write(`🧹 正在关闭 GitHub Phase Issue #${phaseIssue} ...\n`);
   let issueClosed = false;
   try {
-    execFileSync('gh', ['issue', 'close', String(phaseIssue), '--comment', `🎉 Phase 合并交付核验通过！[主干真绿 ∧ 预发 Ping 健壮 ➔ 状态全生命周期闭环！]`], { stdio: 'inherit' });
+    gh(['issue', 'close', String(phaseIssue), '--comment', `🎉 Phase 合并交付核验通过！[主干真绿 ∧ 预发 Ping 健壮 ➔ 状态全生命周期闭环！]`]);
     issueClosed = true;
   } catch (err) {
     process.stderr.write(`⚠️ [Project看板警告] GitHub CLI 执行失败或 token 缺失，跳过看板关闭：${(err as Error).message}\n`);

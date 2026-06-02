@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.run = run;
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
-const node_child_process_1 = require("node:child_process");
 const argv_1 = require("../lib/argv");
 const state_1 = require("../lib/state");
 const config_1 = require("../lib/config");
+const gh_1 = require("../lib/gh");
 /**
  * telemetry-webhook 子命令：模拟读取 APM Webhook 报警载荷并自动化生成 Hotfix Issue
  */
@@ -83,7 +83,7 @@ function run(args) {
     process.stdout.write(`⏳ 正在通过 GitHub API 自动拉起故障 Hotfix 诊断 Issue...\n`);
     let createdIssueUrl = '';
     try {
-        const rawOut = (0, node_child_process_1.execFileSync)('gh', [
+        createdIssueUrl = (0, gh_1.gh)([
             'issue',
             'create',
             '--title',
@@ -94,8 +94,7 @@ function run(args) {
             'hotfix',
             '--label',
             'observability-breach',
-        ], { encoding: 'utf8' });
-        createdIssueUrl = rawOut.trim();
+        ]);
     }
     catch (err) {
         // 降级兜底：本地测试时若缺 token，将 Issue 保存为本地诊断文档，不直接崩溃进程

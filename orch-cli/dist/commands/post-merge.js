@@ -6,6 +6,7 @@ const node_path_1 = require("node:path");
 const argv_1 = require("../lib/argv");
 const state_1 = require("../lib/state");
 const config_1 = require("../lib/config");
+const gh_1 = require("../lib/gh");
 /**
  * post-merge 子命令：PR 合并后的交付级自动化确认 (生产强闭环级)
  */
@@ -103,7 +104,7 @@ async function run(args) {
     process.stdout.write(`🧹 正在关闭 GitHub Phase Issue #${phaseIssue} ...\n`);
     let issueClosed = false;
     try {
-        (0, node_child_process_1.execFileSync)('gh', ['issue', 'close', String(phaseIssue), '--comment', `🎉 Phase 合并交付核验通过！[主干真绿 ∧ 预发 Ping 健壮 ➔ 状态全生命周期闭环！]`], { stdio: 'inherit' });
+        (0, gh_1.gh)(['issue', 'close', String(phaseIssue), '--comment', `🎉 Phase 合并交付核验通过！[主干真绿 ∧ 预发 Ping 健壮 ➔ 状态全生命周期闭环！]`]);
         issueClosed = true;
     }
     catch (err) {
