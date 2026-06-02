@@ -48,7 +48,8 @@ export async function run(args: string[]): Promise<void> {
   let gateError = '';
   try {
     // 运行真正的 gate 校验，不带 --dry-run
-    const gateResultRaw = execFileSync('node', [resolve(__dirname, 'gate.js')], { encoding: 'utf8' });
+    // 注意：命令文件无自执行入口，仅 export run，必须经 index.js 派发器调用才会产出 JSON
+    const gateResultRaw = execFileSync('node', [resolve(__dirname, '..', 'index.js'), 'gate'], { encoding: 'utf8' });
     const gateResult = JSON.parse(gateResultRaw);
     if (gateResult.ok) {
       gatePassed = true;

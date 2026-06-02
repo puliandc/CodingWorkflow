@@ -7,10 +7,14 @@ const config_1 = require("../lib/config");
 /**
  * gate 命令：执行 lint/format/test 命令，并严格执行三硬判定防止伪绿自欺
  * 三硬判定：无错误关键词 ∧ 命中 successString ∧ exit 0
+ *
+ * --sub <sub-issue 编号>  可选，仅用于日志记录；不传则执行项目级全量门禁
  */
 function run(args) {
     const parsed = (0, argv_1.parseArgs)(args);
-    const subNumber = (0, argv_1.requireInt)(parsed, 'sub', '缺少必需参数：--sub <sub-issue 编号>');
+    // --sub 为可选参数：gate 是项目级门禁，不依赖 sub 维度；传入时仅用于日志
+    const subRaw = (0, argv_1.optionalString)(parsed, 'sub');
+    const subNumber = subRaw !== undefined ? parseInt(subRaw, 10) : undefined;
     const dryRun = (0, argv_1.flag)(parsed, 'dry-run');
     const config = (0, config_1.loadConfig)();
     const cmds = config.commands || {};

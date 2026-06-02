@@ -1,14 +1,18 @@
 import { execSync } from 'node:child_process';
-import { parseArgs, requireInt, flag } from '../lib/argv';
+import { parseArgs, optionalString, flag } from '../lib/argv';
 import { loadConfig } from '../lib/config';
 
 /**
  * gate 命令：执行 lint/format/test 命令，并严格执行三硬判定防止伪绿自欺
  * 三硬判定：无错误关键词 ∧ 命中 successString ∧ exit 0
+ *
+ * --sub <sub-issue 编号>  可选，仅用于日志记录；不传则执行项目级全量门禁
  */
 export function run(args: string[]): void {
   const parsed = parseArgs(args);
-  const subNumber = requireInt(parsed, 'sub', '缺少必需参数：--sub <sub-issue 编号>');
+  // --sub 为可选参数：gate 是项目级门禁，不依赖 sub 维度；传入时仅用于日志
+  const subRaw = optionalString(parsed, 'sub');
+  const subNumber = subRaw !== undefined ? parseInt(subRaw, 10) : undefined;
   const dryRun = flag(parsed, 'dry-run');
 
   const config = loadConfig();
