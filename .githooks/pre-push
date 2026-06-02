@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# 在 push 前执行 orch-cli 构建与测试，防止破坏性回归被推送到远程。
+# 启用方式（每个 clone 执行一次）：git config core.hooksPath .githooks
+set -euo pipefail
+
+echo "[pre-push] 执行 orch-cli build + test…"
+
+if ! ( cd orch-cli && npm run build >/dev/null 2>&1 ); then
+  echo "[pre-push] ❌ tsc 构建失败，已中止 push。请修复编译错误后重试。" >&2
+  exit 1
+fi
+
+if ! ( cd orch-cli && node --test 'dist/test/*.test.js' >/dev/null 2>&1 ); then
+  echo "[pre-push] ❌ 测试失败，已中止 push。请修复失败用例后重试。" >&2
+  # 再跑一次，把输出打出来方便排查
+  ( cd orch-cli && node --test 'dist/test/*.test.js' ) || true
+  exit 1
+fi
+
+echo "[pre-push] ✅ build + test 全绿，允许 push。"
+exit 0
