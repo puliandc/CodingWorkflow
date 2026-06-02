@@ -102,8 +102,12 @@ fi
 # 契约文件绝对路径
 CONTRACT_PATH=$(cat "$PRECHECK_FILE" | tr -d '[:space:]')
 if [ -z "$CONTRACT_PATH" ] || [ ! -f "$CONTRACT_PATH" ]; then
-    # 契约文件丢失，优雅 fail-open，允许操作（防止开发死锁）
-    exit 0
+    # 契约文件丢失，fail-closed 阻断（marker 已存在代表进入受控编码期）
+    echo "" >&2
+    echo "⛔ 架构契约违规：.precheck-done 存在但其指向的契约文件丢失或为空！" >&2
+    echo "   请重新运行 precheck 解锁白名单，确保契约文件物理存在后再继续编码。" >&2
+    echo "" >&2
+    exit 2
 fi
 
 # 从契约 arch.md 中安全解析文件白名单（强力解析兼容表格与 fenced block）
@@ -143,8 +147,12 @@ print('\n'.join(paths))
 " "$CONTRACT_PATH" 2>/dev/null)
 
 if [ -z "$WHITELIST" ]; then
-    # 白名单为空或解析失败，出于安全起见直接放行
-    exit 0
+    # 白名单为空或解析失败，fail-closed 阻断（marker 已存在代表进入受控编码期）
+    echo "" >&2
+    echo "⛔ 架构契约违规：白名单解析失败或结果为空！" >&2
+    echo "   请检查 arch.md 中的「文件白名单」表格格式是否正确，并重新运行 precheck 解锁白名单。" >&2
+    echo "" >&2
+    exit 2
 fi
 
 # 检查当前相对路径是否在白名单列表内

@@ -252,6 +252,15 @@ function run(args) {
         process.stderr.write(`❌ 门禁拦截：当前分支 ${currentBranch} 不是 sub- 分支，无法安全编码。\n`);
         process.exit(1);
     }
+    // 5. 所有门禁通过后，写入 .precheck-done 握手标记
+    try {
+        const worktreeRoot = (0, node_child_process_1.execFileSync)('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+        const markerPath = (0, node_path_1.resolve)(worktreeRoot, '.precheck-done');
+        (0, node_fs_1.writeFileSync)(markerPath, archPath + '\n', { encoding: 'utf8' });
+    }
+    catch (err) {
+        process.stderr.write(`⚠️ [precheck 警告] 写入 .precheck-done 标记失败，hook 白名单将无法激活：${err.message}\n`);
+    }
     // 所有门禁均完美通过！
     process.stdout.write(JSON.stringify({
         ok: true,

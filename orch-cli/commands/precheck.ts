@@ -267,6 +267,15 @@ export function run(args: string[]): void {
     process.exit(1);
   }
 
+  // 5. 所有门禁通过后，写入 .precheck-done 握手标记
+  try {
+    const worktreeRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+    const markerPath = resolve(worktreeRoot, '.precheck-done');
+    writeFileSync(markerPath, archPath + '\n', { encoding: 'utf8' });
+  } catch (err) {
+    process.stderr.write(`⚠️ [precheck 警告] 写入 .precheck-done 标记失败，hook 白名单将无法激活：${(err as Error).message}\n`);
+  }
+
   // 所有门禁均完美通过！
   process.stdout.write(
     JSON.stringify({
