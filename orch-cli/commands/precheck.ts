@@ -131,10 +131,10 @@ export function run(args: string[]): void {
   // 并发校验: 语义锁碰撞冲突检测 (Contract Collision)
   // ----------------------------------------------------
   try {
-    const checkScript = resolve(__dirname, 'contract-check.js');
-    // 如果编译后的 contract-check.js 存在，运行之
-    if (existsSync(checkScript)) {
-      execFileSync('node', [checkScript, '--sub', String(subNumber)], { stdio: 'inherit' });
+    // 命令文件无自执行入口（仅 export run），必须经 index.js 派发器调用才会真正执行碰撞检测
+    const indexScript = resolve(__dirname, '..', 'index.js');
+    if (existsSync(indexScript)) {
+      execFileSync('node', [indexScript, 'contract-check', '--sub', String(subNumber)], { stdio: 'inherit' });
     }
   } catch {
     // 碰撞检测抛错直接阻断

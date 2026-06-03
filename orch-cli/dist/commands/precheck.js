@@ -130,10 +130,10 @@ function run(args) {
     // 并发校验: 语义锁碰撞冲突检测 (Contract Collision)
     // ----------------------------------------------------
     try {
-        const checkScript = (0, node_path_1.resolve)(__dirname, 'contract-check.js');
-        // 如果编译后的 contract-check.js 存在，运行之
-        if ((0, node_fs_1.existsSync)(checkScript)) {
-            (0, node_child_process_1.execFileSync)('node', [checkScript, '--sub', String(subNumber)], { stdio: 'inherit' });
+        // 命令文件无自执行入口（仅 export run），必须经 index.js 派发器调用才会真正执行碰撞检测
+        const indexScript = (0, node_path_1.resolve)(__dirname, '..', 'index.js');
+        if ((0, node_fs_1.existsSync)(indexScript)) {
+            (0, node_child_process_1.execFileSync)('node', [indexScript, 'contract-check', '--sub', String(subNumber)], { stdio: 'inherit' });
         }
     }
     catch {
