@@ -271,7 +271,7 @@ function parseArchContracts(archContent) {
     const frozen = [];
     const regressionGuards = [];
     // 1. 提取文件白名单
-    const whitelistMatch = archContent.match(/#### \[契约\] 文件白名单([\s\S]*?)(?=\n#### |\Z)/);
+    const whitelistMatch = archContent.match(/#### \[契约\] 文件白名单([\s\S]*?)(?=\n#### |$)/);
     if (whitelistMatch) {
         const lines = whitelistMatch[1].trim().split('\n');
         for (const line of lines) {
@@ -286,7 +286,7 @@ function parseArchContracts(archContent) {
         }
     }
     // 2. 提取冻结表
-    const frozenMatch = archContent.match(/#### \[契约\] 冻结表([\s\S]*?)(?=\n#### |\Z)/);
+    const frozenMatch = archContent.match(/#### \[契约\] 冻结表([\s\S]*?)(?=\n#### |$)/);
     if (frozenMatch) {
         const lines = frozenMatch[1].trim().split('\n');
         for (const line of lines) {
@@ -301,18 +301,24 @@ function parseArchContracts(archContent) {
         }
     }
     // 3. 提取回归护栏
-    const guardMatch = archContent.match(/#### \[契约\] 回归护栏([\s\S]*?)(?=\n#### |\Z)/);
+    const guardMatch = archContent.match(/#### \[契约\] 回归护栏([\s\S]*?)(?=\n#### |$)/);
     if (guardMatch) {
         const lines = guardMatch[1].trim().split('\n');
         for (const line of lines) {
-            if (line.includes('|') && !['验证用例', '---', '期望结果', '回归脚本'].some(k => line.includes(k))) {
-                const parts = line.split('|').map(p => p.trim());
-                if (parts.length > 2 && parts[1]) {
-                    const clean = parts[1].replace(/`/g, '').trim();
-                    const cleanResult = parts[2] ? parts[2].replace(/`/g, '').trim() : '';
-                    if (clean && !['无', '暂无', '待填写'].includes(clean) && !['无', '暂无', '待填写'].includes(cleanResult)) {
-                        regressionGuards.push(clean);
-                    }
+            if (!line.includes('|'))
+                continue;
+            const parts = line.split('|').map(p => p.trim());
+            // 仅当关键词作为整格内容出现时才判定为表头（避免数据行结果列含「期望结果」等子串被误过滤）
+            const isHeader = ['验证用例', '期望结果', '回归脚本'].some(k => parts[1] === k || parts[2] === k);
+            // 分隔行：单格内容为纯破折号/冒号（如 ---、:---:、------）
+            const isSeparator = /^:?-{3,}:?$/.test(parts[1] || '');
+            if (isHeader || isSeparator)
+                continue;
+            if (parts.length > 2 && parts[1]) {
+                const clean = parts[1].replace(/`/g, '').trim();
+                const cleanResult = parts[2] ? parts[2].replace(/`/g, '').trim() : '';
+                if (clean && !['无', '暂无', '待填写'].includes(clean) && !['无', '暂无', '待填写'].includes(cleanResult)) {
+                    regressionGuards.push(clean);
                 }
             }
         }
