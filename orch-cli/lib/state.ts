@@ -333,12 +333,15 @@ export function parseArchContracts(archContent: string): ExtractedContracts {
   if (whitelistMatch) {
     const lines = whitelistMatch[1].trim().split('\n');
     for (const line of lines) {
-      if (line.includes('|') && !['允许路径', '---', '允许的路径', '变更类型'].some(k => line.includes(k))) {
-        const parts = line.split('|').map(p => p.trim());
-        if (parts.length > 2 && parts[1]) {
-          const clean = parts[1].replace(/`/g, '').trim();
-          if (clean) whitelist.push(clean);
-        }
+      if (!line.includes('|')) continue;
+      const parts = line.split('|').map(p => p.trim());
+      // 整格精确匹配表头 + 分隔行正则，避免路径含表头同名子串被误过滤
+      const isHeader = ['允许路径', '允许的路径', '变更类型'].some(k => parts[1] === k || parts[2] === k);
+      const isSeparator = /^:?-{3,}:?$/.test(parts[1] || '');
+      if (isHeader || isSeparator) continue;
+      if (parts.length > 2 && parts[1]) {
+        const clean = parts[1].replace(/`/g, '').trim();
+        if (clean) whitelist.push(clean);
       }
     }
   }
@@ -348,12 +351,15 @@ export function parseArchContracts(archContent: string): ExtractedContracts {
   if (frozenMatch) {
     const lines = frozenMatch[1].trim().split('\n');
     for (const line of lines) {
-      if (line.includes('|') && !['冻结路径', '---', '说明'].some(k => line.includes(k))) {
-        const parts = line.split('|').map(p => p.trim());
-        if (parts.length > 2 && parts[1]) {
-          const clean = parts[1].replace(/`/g, '').trim();
-          if (clean) frozen.push(clean);
-        }
+      if (!line.includes('|')) continue;
+      const parts = line.split('|').map(p => p.trim());
+      // 整格精确匹配表头 + 分隔行正则，避免路径/说明含表头同名子串被误过滤
+      const isHeader = ['冻结路径', '说明'].some(k => parts[1] === k || parts[2] === k);
+      const isSeparator = /^:?-{3,}:?$/.test(parts[1] || '');
+      if (isHeader || isSeparator) continue;
+      if (parts.length > 2 && parts[1]) {
+        const clean = parts[1].replace(/`/g, '').trim();
+        if (clean) frozen.push(clean);
       }
     }
   }
