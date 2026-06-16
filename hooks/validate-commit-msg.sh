@@ -8,7 +8,8 @@ CMD=$(echo "$INPUT" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
-    print(d.get('command', ''))
+    ti = d.get('tool_input') or {}
+    print(d.get('command') or ti.get('command') or '')
 except Exception:
     print('')
 " 2>/dev/null)
