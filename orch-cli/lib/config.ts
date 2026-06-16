@@ -47,6 +47,11 @@ export interface ProjectConfig {
     metricsUrl?: string;
     hotfixTemplate?: string;
   };
+  architectureDocs?: {
+    enabled?: boolean;
+    dir?: string;
+    uncertaintyPolicy?: 'conservative-update' | 'no-op';
+  };
   guardrailCompiler?: {
     allowAutoRewrite?: boolean;
     targetConfigs?: string[];

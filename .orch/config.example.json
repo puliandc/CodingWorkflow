@@ -57,6 +57,11 @@
     "metricsUrl": "https://apm.company.com/services/metrics",
     "hotfixTemplate": ".orch/templates/hotfix-issue.md"
   },
+  "architectureDocs": {
+    "enabled": true,
+    "dir": "docs/architecture",
+    "uncertaintyPolicy": "conservative-update"
+  },
   "guardrailCompiler": {
     "allowAutoRewrite": false,
     "targetConfigs": [".orch/config.json", "hooks/guard-impl-access.sh"]

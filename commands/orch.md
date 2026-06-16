@@ -213,12 +213,21 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
    - 状态机自动拉取最新主干分支运行真绿验证（`gate` 门禁断言）。
    - 自动探测预发/部署健康检查端点是否可用（Ping 校验）。
    - 自动在 GitHub Project 看板上将该 Phase Issue 状态扭转为 Done 并物理关闭 Issue。
-3. 创建 Phase 整体交付 PR（若有必要）且执行 worktree 清理：
+3. **全局架构文档同步检查（Markdown 活文档）**：
+   - 在创建 Phase 整体 PR 前运行确定性检查：
+     ```bash
+     node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" architecture-docs-check --phase-issue <phase_issue> --dry-run
+     ```
+   - 若 JSON 中 `decision` 为 `update-required`，派发 `architecture-docs` agent，按 `targetDocs` 更新 `docs/architecture/` 中对应 Markdown。
+   - 若 JSON 中 `decision` 为 `conservative-update`，派发 `architecture-docs` agent，仅追加 `docs/architecture/changelog.md` 的短记录与人工复核提示。
+   - 若 JSON 中 `decision` 为 `no-op`，不修改架构文档。
+   - **边界 (HARD RULE)**：全局架构文档只描述长期结构和导航；具体任务契约仍以 `docs/<feature>/phase-<N>/<sub>/arch.md` 为唯一依据。架构文档变更随 Phase PR 合入，不在 post-merge 中直接提交到主干。
+4. 创建 Phase 整体交付 PR（若有必要）且执行 worktree 清理：
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" pr-create-phase --phase-issue <phase_issue>
    node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" worktree-remove --phase-issue <phase_issue>
    ```
-4. **Retro 复盘与规则自演进编译器激活**：
+5. **Retro 复盘与规则自演进编译器激活**：
    - **派发门控 (HARD RULE)**：**仅当项目配置中 `retro.enabled` 不为 `false` 时**，才启动 Retro 自演进：
      - 派发 `retro` agent → 总结踩坑记录、根本原因、防错规则，产出 `docs/retro/retro-phase-<N>.md`。
      - 派发 `guardrail-compiler` agent → 读取 retro，自动将踩坑规约编译为配置与钩子规则 diff，产出候选防御清单 `docs/retro/guardrail-candidate-diffs-<Phase>.md`。

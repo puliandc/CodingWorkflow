@@ -111,6 +111,11 @@
   "observability": {
     "metricsUrl": "https://apm.company.com/services/metrics",
     "hotfixTemplate": ".orch/templates/hotfix-issue.md"
+  },
+  "architectureDocs": {
+    "enabled": true,
+    "dir": "docs/architecture",
+    "uncertaintyPolicy": "conservative-update"
   }
 }
 ```
@@ -130,6 +135,7 @@
 - `workflowGates` [可选]：定义从需求 Intake 到混沌 Chaos 各流程模块的门禁等级（`block` 阻断 / `warn` 警告 / `off` 降级关闭）。
 - `workflowGates.debug` [可选]：控制 D 阶段 `gate` 失败后的自动 Debug，缺省为 `block`（自动诊断并等待 `/debug confirm`）；设为 `warn` 时只生成诊断评论，设为 `off` 时关闭自动 Debug。
 - `commands` [可选]：定义门禁中调用本地编译器的各种指令（含 build/lint/test/format）。
+- `architectureDocs` [可选]：控制全局架构文档同步检查；默认目录为 `docs/architecture`，不确定变更默认走 `conservative-update`，只追加短日志供人工复核。
 
 ---
 
@@ -191,7 +197,7 @@ Claude Code 是本仓库当前的原生插件目标环境。仓库已经提供 `
 
 - `codingworkflow` 处于 enabled 状态。
 - `/orch` 与 `/debug` 出现在 slash command 列表。
-- agents 列表包含 `triage`、`probing`、`adr`、`arch`、`design`、`coding`、`debug`、`chaos`、`test`、`review`、`release`、`guardrail-compiler`、`retro`。
+- agents 列表包含 `triage`、`probing`、`adr`、`arch`、`design`、`coding`、`debug`、`chaos`、`test`、`review`、`release`、`architecture-docs`、`guardrail-compiler`、`retro`。
 
 **方式 B：用 `.claude/settings.local.json` 固定本地安装**
 
@@ -419,6 +425,7 @@ CodingWorkflow/
 │   ├── test.md                   # 测试 Test Agent (测试设计与执行报告)
 │   ├── review.md                 # 代码审查 Review Agent (契约校验、日志脱敏与 PII 脱敏审查)
 │   ├── release.md                # 发布规划 Release Agent (产出回退 Runbook 与 Schema 补偿)
+│   ├── architecture-docs.md       # 全局架构文档维护 Agent (只更新 docs/architecture)
 │   ├── retro.md                  # 复盘 Retro Agent (知识沉淀与防错规则候选提取)
 │   └── guardrail-compiler.md     # 规则编译器 Agent (解析 retro 生成候选配置防御 diff)
 ├── hooks/

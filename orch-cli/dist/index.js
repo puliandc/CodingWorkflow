@@ -65,6 +65,7 @@ const COMMANDS = {
     'contract-check': '跨分支碰撞校验当前 sub-issue 与全局并发契约的冲突',
     'chaos-gate': '审计并门禁混沌红蓝对抗验证报告（docs/test/chaos-report.md）',
     'release-check': '审计生产部署与一键回退 Runbook（docs/release/release-plan.md）',
+    'architecture-docs-check': '检查全局架构文档是否需要同步维护',
     'guardrail-compile': '读取 retro.md 编译防错候选配置与钩子 Diffs',
     'post-merge': '交付后自动核验与闭环清理（含健康 Ping 与 issue 关闭）',
     'telemetry-webhook': 'APM 遥测 Webhook 异常回流物理拉起 Hotfix Issue 闭环',
@@ -200,6 +201,11 @@ async function main() {
         }
         case 'release-check': {
             const m = await Promise.resolve().then(() => __importStar(require('./commands/release-check')));
+            m.run(rest);
+            break;
+        }
+        case 'architecture-docs-check': {
+            const m = await Promise.resolve().then(() => __importStar(require('./commands/architecture-docs-check')));
             m.run(rest);
             break;
         }

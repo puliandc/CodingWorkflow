@@ -21,6 +21,7 @@
     "agents/test.md",
     "agents/review.md",
     "agents/release.md",
+    "agents/architecture-docs.md",
     "agents/guardrail-compiler.md",
     "agents/retro.md"
   ]

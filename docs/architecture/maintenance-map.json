@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "README.md": ["README.md"],
+    ".claude-plugin/": ["README.md", "module-map.md"],
+    ".orch/config": ["flow.md", "module-map.md"],
+    "agents/": ["flow.md", "module-map.md"],
+    "commands/": ["flow.md", "module-map.md"],
+    "hooks/": ["flow.md", "module-map.md"],
+    "orch-cli/index.ts": ["module-map.md"],
+    "orch-cli/commands/": ["flow.md", "module-map.md"],
+    "orch-cli/lib/": ["flow.md", "module-map.md"]
+  },
+  "ignoredPrefixes": [
+    "docs/architecture/",
+    "docs/adr/",
+    "docs/discovery/",
+    "docs/release/",
+    "docs/retro/",
+    "docs/triage/",
+    "orch-cli/test/",
+    "code-review-report.md"
+  ],
+  "ignoredPatterns": [
+    "^docs/[^/]+/phase-\\d+/"
+  ],
+  "conservativeTarget": "changelog.md"
+}

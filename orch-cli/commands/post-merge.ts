@@ -4,6 +4,7 @@ import { parseArgs, requireInt, flag } from '../lib/argv';
 import { loadState, mainRepoRoot } from '../lib/state';
 import { loadConfig } from '../lib/config';
 import { gh } from '../lib/gh';
+import { evaluateArchitectureDocsCheck } from '../lib/architecture-docs';
 
 /**
  * post-merge 子命令：PR 合并后的交付级自动化确认 (生产强闭环级)
@@ -36,8 +37,10 @@ export async function run(args: string[]): Promise<void> {
         hint: `[Dry-Run] 将核对物理交付状态：\n` +
           `1. 真实运行主干门禁 gate 校验\n` +
           `2. 真实 HTTP fetch 健康探测 ${apmUrl}\n` +
-          `3. 真实运行 gh issue close ${phaseIssue} 并反馈状态\n` +
-          `4. 指引 worktree-remove 清理物理分支空间`,
+          `3. 运行 architecture-docs-check 判断全局架构文档是否需要同步\n` +
+          `4. 真实运行 gh issue close ${phaseIssue} 并反馈状态\n` +
+          `5. 指引 worktree-remove 清理物理分支空间`,
+        architectureDocsStep: `node ${resolve(__dirname, '..', 'index.js')} architecture-docs-check --phase-issue ${phaseIssue} --dry-run`,
       }) + '\n'
     );
     return;
@@ -114,6 +117,23 @@ export async function run(args: string[]): Promise<void> {
     issueClosed = false; // 确实失败时为 false
   }
 
+  let architectureDocsCheck: unknown;
+  try {
+    architectureDocsCheck = evaluateArchitectureDocsCheck({
+      config,
+      phaseIssue,
+      dryRun: false,
+    });
+  } catch (err) {
+    const message = (err as Error).message;
+    process.stderr.write(`⚠️ [架构文档同步警告] 检查失败，需人工复核：${message}\n`);
+    architectureDocsCheck = {
+      ok: false,
+      error: message,
+      hint: '架构文档检查失败，但 post-merge 不直接执行语义写作；请人工运行 architecture-docs-check 复核',
+    };
+  }
+
   process.stdout.write(
     JSON.stringify({
       ok: true,
@@ -121,6 +141,7 @@ export async function run(args: string[]): Promise<void> {
       gatePassed,
       deployHealthy,
       issueClosed,
+      architectureDocsCheck,
       hint: `🎉 [交付闭环完美大核定] Phase #${phaseIssue} 交付已全面闭环！[主干真绿 ➔ 预发 APM 健康 ➔ Issue 自动关闭归档]。请手动运行 worktree-remove 清理物理分支空间。`,
     }) + '\n'
   );

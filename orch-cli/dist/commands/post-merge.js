@@ -7,6 +7,7 @@ const argv_1 = require("../lib/argv");
 const state_1 = require("../lib/state");
 const config_1 = require("../lib/config");
 const gh_1 = require("../lib/gh");
+const architecture_docs_1 = require("../lib/architecture-docs");
 /**
  * post-merge 子命令：PR 合并后的交付级自动化确认 (生产强闭环级)
  */
@@ -35,8 +36,10 @@ async function run(args) {
             hint: `[Dry-Run] 将核对物理交付状态：\n` +
                 `1. 真实运行主干门禁 gate 校验\n` +
                 `2. 真实 HTTP fetch 健康探测 ${apmUrl}\n` +
-                `3. 真实运行 gh issue close ${phaseIssue} 并反馈状态\n` +
-                `4. 指引 worktree-remove 清理物理分支空间`,
+                `3. 运行 architecture-docs-check 判断全局架构文档是否需要同步\n` +
+                `4. 真实运行 gh issue close ${phaseIssue} 并反馈状态\n` +
+                `5. 指引 worktree-remove 清理物理分支空间`,
+            architectureDocsStep: `node ${(0, node_path_1.resolve)(__dirname, '..', 'index.js')} architecture-docs-check --phase-issue ${phaseIssue} --dry-run`,
         }) + '\n');
         return;
     }
@@ -111,12 +114,30 @@ async function run(args) {
         process.stderr.write(`⚠️ [Project看板警告] GitHub CLI 执行失败或 token 缺失，跳过看板关闭：${err.message}\n`);
         issueClosed = false; // 确实失败时为 false
     }
+    let architectureDocsCheck;
+    try {
+        architectureDocsCheck = (0, architecture_docs_1.evaluateArchitectureDocsCheck)({
+            config,
+            phaseIssue,
+            dryRun: false,
+        });
+    }
+    catch (err) {
+        const message = err.message;
+        process.stderr.write(`⚠️ [架构文档同步警告] 检查失败，需人工复核：${message}\n`);
+        architectureDocsCheck = {
+            ok: false,
+            error: message,
+            hint: '架构文档检查失败，但 post-merge 不直接执行语义写作；请人工运行 architecture-docs-check 复核',
+        };
+    }
     process.stdout.write(JSON.stringify({
         ok: true,
         phaseIssue,
         gatePassed,
         deployHealthy,
         issueClosed,
+        architectureDocsCheck,
         hint: `🎉 [交付闭环完美大核定] Phase #${phaseIssue} 交付已全面闭环！[主干真绿 ➔ 预发 APM 健康 ➔ Issue 自动关闭归档]。请手动运行 worktree-remove 清理物理分支空间。`,
     }) + '\n');
 }
