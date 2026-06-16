@@ -6,6 +6,23 @@
 
 ---
 
+## 🧭 这个仓库到底是什么
+
+`CodingWorkflow` 不是业务应用，也不是单个项目的脚手架。它是一个可分发的本地工作流底座，用来把 Claude Code / Codex 这类代码代理约束到可审计、可回归、可中断的工程流程中。
+
+仓库中有四类核心资产：
+
+| 资产 | 目录 | 作用 |
+|---|---|---|
+| Claude Code 插件清单 | `.claude-plugin/` | 声明插件名 `codingworkflow`、本地 marketplace、`/orch` 与 `/debug` 命令、13 个阶段 agent |
+| 编排提示词 | `commands/`、`agents/` | 定义 Phase 0 到 E-2 的主流程、Debug 流程，以及 triage/probing/adr/arch/coding/test/review/chaos/release/retro 等角色职责 |
+| 物理执行层 | `orch-cli/` | TypeScript CLI，负责创建 worktree、推进状态、注册契约、执行 precheck/gate、创建 PR、处理 post-merge 与 telemetry 回灌 |
+| 硬门禁 Hook | `hooks/` | Claude PreToolUse hook：白名单写入拦截、提交信息格式校验、上下文防污染拦截 |
+
+设计上的单一真相是：人类/主会话通过 `/orch` 和 `/debug` 驱动流程，命令提示词负责调度代理，代理产出设计/测试/发布文档，`orch-cli` 负责确定性门禁与状态变更，hook 负责在代理写码时做最后一道物理拦截。
+
+---
+
 ## 🚀 核心架构与物理落地成果
 
 ### 1. 100% 物理闭环全生命周期状态机 (Phase 0 ~ E-2)
@@ -116,33 +133,226 @@
 
 ---
 
-## 🛠️ 新项目快速接入四步走
+## 🛠️ 安装与使用总览
 
-### 第一步：本地注册并装载插件
+### 前置条件
+
+在接入任何目标项目之前，先确认本机具备：
+
+- Git 仓库：目标项目必须是 Git 仓库，且能创建 linked worktree。
+- Node.js：`orch-cli/dist/index.js` 使用 Node 运行；如果修改了 `orch-cli/*.ts`，需要在 `orch-cli/` 下运行 `npm install && npm run build` 重新生成 `dist/`。
+- GitHub CLI：涉及 issue、PR、Project 状态流转的命令依赖 `gh` 已登录，并且 `.orch/config.json` 的 `repo` 与远端仓库一致。
+- 目标项目配置：在目标项目根目录创建 `.orch/config.json`，最小必填字段是 `repo` 与 `baseBranch`。
+- Claude/Codex 权限：涉及写文件、创建分支、push、PR、GitHub issue 评论的步骤都是真实副作用；先用 `--dry-run` 做预演。
+
+### 目标项目最小配置
+
+把本仓库的 `.orch/config.example.json` 复制到目标项目，并至少改掉以下字段：
+
 ```bash
-# 注册本地 marketplace 并安装插件
-/plugin marketplace add <本仓库本地路径>
-/plugin install codingworkflow
+mkdir -p .orch
+cp /Users/jason/Documents/APP/CodingWorkflow/.orch/config.example.json .orch/config.json
 ```
 
-### 第二步：在新项目根目录编写配置
-参考上方的 `.orch/config.json` 模板，在您目标项目中创建该文件。
+必须核对：
 
-### 第三步：驱动状态机起飞
+| 字段 | 说明 |
+|---|---|
+| `repo` | GitHub 仓库，格式 `owner/name`，必须与 `git remote -v` 指向一致 |
+| `baseBranch` | Phase 分支基线，例如 `origin/main` |
+| `worktreeDir` | Phase linked worktree 的父目录，建议放在目标仓库同级目录 |
+| `commands` | `gate` 会真实执行的 `lint` / `format` / `test` 命令 |
+| `greenVerdict` | 真绿三硬判定：退出码 0、命中成功串、未命中错误关键词 |
+| `workflowGates` | 每个门禁的 `block` / `warn` / `off` 策略 |
+| `whitelistEnforcePaths` | 未通过 precheck 前禁止写入的核心路径前缀 |
+
+验证配置能被 CLI 读取：
+
 ```bash
+node /Users/jason/Documents/APP/CodingWorkflow/orch-cli/dist/index.js gate --dry-run
+```
+
+### 在 Claude Code CLI 中安装和使用
+
+Claude Code 是本仓库当前的原生插件目标环境。仓库已经提供 `.claude-plugin/plugin.json` 与 `.claude-plugin/marketplace.json`，安装后会注册 `/orch`、`/debug`、阶段 agents 与 PreToolUse hooks。
+
+**方式 A：在 Claude Code 交互会话里注册本地 marketplace**
+
+在目标项目根目录打开 Claude Code CLI，然后执行：
+
+```text
+/plugin marketplace add /Users/jason/Documents/APP/CodingWorkflow
+/plugin install codingworkflow
+/reload-plugins
+/plugin list
+```
+
+期望结果：
+
+- `codingworkflow` 处于 enabled 状态。
+- `/orch` 与 `/debug` 出现在 slash command 列表。
+- agents 列表包含 `triage`、`probing`、`adr`、`arch`、`design`、`coding`、`debug`、`chaos`、`test`、`review`、`release`、`guardrail-compiler`、`retro`。
+
+**方式 B：用 `.claude/settings.local.json` 固定本地安装**
+
+适合个人机器或单个项目，不建议写入团队共享配置。把下面内容合并到目标项目的 `.claude/settings.local.json`：
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "codingworkflow-local": {
+      "source": {
+        "source": "local",
+        "path": "/Users/jason/Documents/APP/CodingWorkflow"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "codingworkflow@codingworkflow-local": true
+  }
+}
+```
+
+重新进入 Claude Code CLI 后执行：
+
+```text
+/reload-plugins
+/plugin list
+```
+
+**启动一个 Phase**
+
+确认目标项目 `.orch/config.json` 已经就绪后，使用 GitHub Phase issue 编号或 URL 启动：
+
+```text
 /orch <GitHub Phase Issue 编号或 URL>
 ```
 
-手动验收发现 Bug 时，也可以直接拉起诊断：
-```bash
-/debug <sub-issue 编号>
-/debug confirm <sub-issue 编号>
+常用命令：
+
+```text
+/orch status
+/orch resume
+/orch post-merge <phase_issue>
+/orch escalate <原因>
+/debug <sub_issue>
+/debug confirm <sub_issue>
 ```
 
-### 第四步：后续更新与同步 (/plugin update)
-当纪律引擎底座在实现端有修改、或者更新了规则配置时，在任何已装载的项目主会话中运行以下命令，即可**一键同步**最新插件，达成「一处维护，多处同步」：
+安全建议：
+
+- 首次接入先在低风险 issue 上验证，不要直接拿重量级功能当安装验证。
+- 需要检查底层命令时，先运行 `--dry-run`。例如在插件命令提示词中调用的 CLI 均可手动预演：
+  ```bash
+  node /Users/jason/Documents/APP/CodingWorkflow/orch-cli/dist/index.js branch-create --type phase --n 1 --slug demo --issue 123 --dry-run
+  ```
+- `/orch` 会逐步创建 worktree、分支、文档、issue/PR 状态。不要在未核对配置的情况下直接对生产仓库执行。
+
+### 在 Claude Code IDE 中安装和使用
+
+Claude Code IDE 场景与 CLI 使用同一套项目配置和插件资产，核心差异是入口在 IDE 的 Claude Code 面板，而不是终端 TUI。
+
+推荐做法：
+
+1. 先在目标项目中落好 `.orch/config.json`。
+2. 在同一目标项目下创建或合并 `.claude/settings.local.json`，内容与上面的 CLI 方式 B 相同。
+3. 重启或刷新 IDE 中的 Claude Code 会话。
+4. 在 Claude Code 面板里运行：
+   ```text
+   /reload-plugins
+   /plugin list
+   /orch status
+   ```
+5. 如果 slash command 与 agents 都能被识别，就可以在 IDE 会话里直接运行：
+   ```text
+   /orch <GitHub Phase Issue 编号或 URL>
+   ```
+
+IDE 使用建议：
+
+- 把 IDE 当成主会话入口时，不要同时在另一个 Claude Code CLI 会话里推进同一个 Phase，避免两个主会话抢同一个 `.orch/phases/phase-<issue>.json`。
+- 若 IDE 版本暂时没有显示本地插件或 `/orch` 命令，使用 Claude Code CLI 完成编排，IDE 只作为编辑器查看 worktree 和文档。
+- 插件 hook 会按 Claude Code 的 PreToolUse 机制拦截写入、提交信息和上下文污染；如果 hook 没有生效，先检查插件是否 enabled，再检查 `.orch/config.json` 是否存在。
+
+### 在 Codex 中安装和使用
+
+当前仓库是 **Claude Code 插件形态**，还不是原生 Codex 插件形态：仓库没有 `.codex-plugin/plugin.json`，`commands/orch.md` 也不会自动变成 Codex 的 `/orch` slash command。因此不要把 Claude 安装命令 `/plugin install codingworkflow` 直接写成 Codex 可用命令。
+
+Codex 里可以按三种层级使用这个 Workflow。
+
+**层级 1：当前可用，作为源码工作流和 CLI 工具使用**
+
+在目标项目中准备 `.orch/config.json` 后，直接调用本仓库的 CLI：
+
 ```bash
+export CODINGWORKFLOW_ROOT=/Users/jason/Documents/APP/CodingWorkflow
+node "$CODINGWORKFLOW_ROOT/orch-cli/dist/index.js" gate --dry-run
+node "$CODINGWORKFLOW_ROOT/orch-cli/dist/index.js" branch-create --type phase --n 1 --slug demo --issue 123 --dry-run
+```
+
+已有 `.orch/phases/phase-<issue>.json` 和 sub-issue 状态后，再使用状态相关命令：
+
+```bash
+node "$CODINGWORKFLOW_ROOT/orch-cli/dist/index.js" state-next
+node "$CODINGWORKFLOW_ROOT/orch-cli/dist/index.js" precheck --sub <sub_issue> --dry-run
+```
+
+在 Codex 会话中给出明确指令，例如：
+
+```text
+请按 /Users/jason/Documents/APP/CodingWorkflow/README.md 的 CodingWorkflow 规则协作。
+先读取目标项目 .orch/config.json、docs/triage、docs/adr、arch.md、test.md。
+未确认前只运行 --dry-run，不创建分支、不 push、不发 PR。
+```
+
+如果希望 Codex 持久遵守本工作流，把关键约束写入目标项目 `AGENTS.md`。Codex 会按项目层级读取 `AGENTS.md`，适合沉淀三表、Decision Needed、测试真实性、禁止读密钥等长期规则。
+
+**层级 2：通过 Codex App 导入现有 agent setup**
+
+Codex App 提供“Import other agent setup”入口，可以导入受支持的 instruction、settings、skills、plugins、hooks、slash commands、subagents 等项目。导入不会删除原 Claude 配置，但导入后必须逐项复核：
+
+- 导入的 hooks 在 Codex 中的事件名、matcher、工具名是否仍等价。
+- Claude 的 `/orch` slash command 是否被导入为 Codex 可识别的 skill / prompt / plugin。
+- 任何需要授权的插件或连接器是否完成设置。
+
+如果导入结果没有出现可用的 Codex 插件或 slash command，退回层级 1，使用 CLI 与 `AGENTS.md`。
+
+**层级 3：未来原生 Codex 插件化**
+
+要把本仓库做成 Codex 原生插件，需要新增 Codex 插件清单并做映射，不是 README 配置即可完成：
+
+| Claude 当前资产 | Codex 原生化建议 |
+|---|---|
+| `.claude-plugin/plugin.json` | 新增 `.codex-plugin/plugin.json` |
+| `commands/orch.md`、`commands/debug.md` | 改造成 Codex skills 或 Codex 可识别的插件命令入口 |
+| `agents/*.md` | 按 Codex skills/subagents 规则拆分和声明 |
+| `hooks/hooks.json` | 校对 Codex hook 事件、matcher、工具名后迁移 |
+| `CLAUDE_PLUGIN_ROOT` 路径引用 | 改成 Codex 插件运行时可解析的路径或改为显式 `CODINGWORKFLOW_ROOT` |
+
+在完成原生化之前，Codex 的可靠使用方式是：用 `AGENTS.md` 提供协作纪律，用 `orch-cli` 提供确定性门禁，用 Codex 的普通文件编辑/命令执行能力完成具体实现。
+
+### 更新与维护
+
+如果只更新 README、agents、commands 或 hooks，已安装 Claude 插件的项目需要刷新插件：
+
+```text
 /plugin update codingworkflow
+/reload-plugins
+```
+
+如果修改了 `orch-cli/*.ts`：
+
+```bash
+cd /Users/jason/Documents/APP/CodingWorkflow/orch-cli
+npm install
+npm run build
+npm test
+```
+
+本仓库自带 Git hook，用来避免提交 TypeScript 源码却忘记重建 `dist/`：
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ---
