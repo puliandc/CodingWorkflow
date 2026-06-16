@@ -49,20 +49,22 @@
 ```json
 {
   "extraKnownMarketplaces": {
-    "codingworkflow-local": {
-      "source": { "source": "local", "path": "/Users/jason/Documents/APP/CodingWorkflow" }
+    "codingworkflow-local-marketplace": {
+      "source": { "source": "directory", "path": "/Users/jason/Documents/APP/CodingWorkflow" }
     }
   },
   "enabledPlugins": {
-    "codingworkflow@codingworkflow-local": true
+    "codingworkflow@codingworkflow-local-marketplace": true
   }
 }
 ```
 
+> 注：`source` 用 `directory`（官方文档的本地目录写法，指向含 `.claude-plugin/marketplace.json` 的目录）；settings.local.json 这条建议用真实 CLI 复核。`marketplace.json` 的 `name`、此处 key、`@` 后缀三者统一为 `codingworkflow-local-marketplace`。
+
 验证（**必须在 P1914 的交互式 Claude Code 会话执行**）：
 ```
 /reload-plugins
-/plugin list          # 应见 codingworkflow@codingworkflow-local (enabled)
+/plugin list          # 应见 codingworkflow@codingworkflow-local-marketplace (enabled)
 /orch                 # 命令应可用；agents 列表应含 triage/probing/adr/arch/design/coding/chaos/test/review/release/guardrail-compiler/retro
 ```
 

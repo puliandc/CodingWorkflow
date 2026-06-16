@@ -184,18 +184,18 @@ Claude Code 是本仓库当前的原生插件目标环境。仓库已经提供 `
 
 **方式 A：在 Claude Code 交互会话里注册本地 marketplace**
 
-在目标项目根目录打开 Claude Code CLI，然后执行：
+在目标项目根目录打开 Claude Code CLI，然后执行（把示例中的 `/Users/jason/Documents/APP/CodingWorkflow` 换成你本机克隆仓库的绝对路径，例如 Windows 下 `F:\projects\CodingWorkflow`）：
 
 ```text
 /plugin marketplace add /Users/jason/Documents/APP/CodingWorkflow
-/plugin install codingworkflow
+/plugin install codingworkflow@codingworkflow-local-marketplace
 /reload-plugins
 /plugin list
 ```
 
 期望结果：
 
-- `codingworkflow` 处于 enabled 状态。
+- `codingworkflow@codingworkflow-local-marketplace` 处于 enabled 状态。
 - `/orch` 与 `/debug` 出现在 slash command 列表。
 - agents 列表包含 `triage`、`probing`、`adr`、`arch`、`design`、`coding`、`debug`、`chaos`、`test`、`review`、`release`、`architecture-docs`、`guardrail-compiler`、`retro`。
 
@@ -206,18 +206,24 @@ Claude Code 是本仓库当前的原生插件目标环境。仓库已经提供 `
 ```json
 {
   "extraKnownMarketplaces": {
-    "codingworkflow-local": {
+    "codingworkflow-local-marketplace": {
       "source": {
-        "source": "local",
+        "source": "directory",
         "path": "/Users/jason/Documents/APP/CodingWorkflow"
       }
     }
   },
   "enabledPlugins": {
-    "codingworkflow@codingworkflow-local": true
+    "codingworkflow@codingworkflow-local-marketplace": true
   }
 }
 ```
+
+> 说明：
+> - `path` 改成你本机克隆仓库的绝对路径（Windows 如 `F:\projects\CodingWorkflow`）；相对路径在 settings 里可能不被解析（参见 Claude Code issue #23978），请用绝对路径。
+> - `source` 取 `directory`（指向含 `.claude-plugin/marketplace.json` 的目录），是官方文档给出的本地目录写法；settings.local.json 的实际解析建议再用真实 CLI 复核一次。
+> - 三处标识符必须完全一致：`marketplace.json` 的 `name`、`extraKnownMarketplaces` 的 key、`enabledPlugins` 引用的 `@` 后缀，全部是 `codingworkflow-local-marketplace`。
+> - 若 settings 声明没生效，改用方式 A 的 `/plugin marketplace add` 注册（更可靠）。
 
 重新进入 Claude Code CLI 后执行：
 
@@ -339,12 +345,14 @@ Codex App 提供“Import other agent setup”入口，可以导入受支持的 
 
 ### 更新与维护
 
-如果只更新 README、agents、commands 或 hooks，已安装 Claude 插件的项目需要刷新插件：
+如果只更新 README、agents、commands 或 hooks，已安装 Claude 插件的项目需要刷新插件（`/plugin marketplace update` 从本地 marketplace 目录重新拉取列表，`/reload-plugins` 不重启即生效）：
 
 ```text
-/plugin update codingworkflow
+/plugin marketplace update codingworkflow-local-marketplace
 /reload-plugins
 ```
+
+> 注：本地目录 marketplace 改动若刷新后仍未生效，重启 Claude Code 是最稳妥的兜底。
 
 如果修改了 `orch-cli/*.ts`：
 
@@ -408,7 +416,7 @@ git config core.hooksPath .githooks
 ```
 CodingWorkflow/
 ├── .claude-plugin/
-│   ├── plugin.json               # 插件元数据与指令注册
+│   ├── plugin.json               # 插件元数据（命令/agents 由目录自动发现）
 │   └── marketplace.json          # Marketplace 本地注册信息
 ├── commands/
 │   ├── orch.md                   # /orch 主编排状态机骨架 (声明了全套 HARD RULE)
