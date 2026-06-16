@@ -30,6 +30,10 @@ tools: Read, Edit, Write, Bash, Grep, Glob
    - 严禁仅凭退出码（exit 0）或个人感觉宣布 PASS！必须确保门禁命令无报错且输出包含 `passed: true` 时才算校验通过。
 3. 产出结构化的测试报告，写入 `docs/<功能名>/phase-<N>/<sub>/test-report.md`，报告中必须附带门禁命令的判定结果 JSON 片段。
 4. 测试失败或被门禁拦截时，必须详细输出命令报错日志与击穿的三硬标准（例如：命中错误关键词或未包含成功字符串），并上报 orch 标记为 blocked。
+5. 若失败发生在 D 阶段 `gate --sub <sub_issue>`，必须按 `.orch/config.json` 的 `workflowGates.debug` 转入 Debug：
+   - 缺省或 `"block"`：上报 orch 拉起 `debug` agent，生成 `debug-report.md` 并评论当前 sub-issue 后阻断，等待 `/debug confirm <sub_issue>`。
+   - `"warn"`：上报 orch 拉起 `debug` agent 生成诊断评论，但仍保留普通 gate 失败状态。
+   - `"off"`：不拉起 Debug，保持原 blocked 行为。
 
 ---
 

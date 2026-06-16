@@ -30,7 +30,9 @@ const STAGE_B_FILES = ['arch.md', 'test.md', 'design.md'];
 /** Stage B 阶段必须存在的文档（design 可选） */
 const STAGE_B_REQUIRED = ['arch.md', 'test.md'];
 /** Stage D 阶段要提交的报告 */
-const STAGE_D_FILES = ['review-report.md', 'test-report.md'];
+const STAGE_D_FILES = ['review-report.md', 'test-report.md', 'debug-report.md'];
+/** Stage D 阶段必须存在的报告（debug-report 仅在触发 Debug 时存在） */
+const STAGE_D_REQUIRED = ['review-report.md', 'test-report.md'];
 /**
  * 执行 git 命令并返回 stdout
  * @param args git 参数数组
@@ -106,7 +108,7 @@ function run(args) {
     }
     // 计算本阶段对应的文件清单（仅保留实际存在的）
     const candidateFiles = stage === 'B' ? STAGE_B_FILES : STAGE_D_FILES;
-    const requiredFiles = stage === 'B' ? STAGE_B_REQUIRED : STAGE_D_FILES;
+    const requiredFiles = stage === 'B' ? STAGE_B_REQUIRED : STAGE_D_REQUIRED;
     const existingFiles = [];
     const missingRequired = [];
     for (const fname of candidateFiles) {

@@ -27,6 +27,8 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
 - `/orch status` → 进度查询（打印当前 Phase 执行进度、效能 Metrics 与下一步指引）。
 - `/orch resume` → 恢复状态（读取当前 Phase 进度文件并重新输出路由指引）。
 - `/orch escalate <原因>` → 升级阻塞（创建 Decision Needed issue 并标记阻碍）。
+- `/debug <sub_issue>` → 独立 Debug 诊断入口；D 阶段 gate 失败时可由 `/orch` 自动拉起。
+- `/debug confirm <sub_issue>` → 人工确认 Debug 修复计划后，复用 `coding` agent 执行修复并清理临时日志。
 - **`--dry-run` 标志**：在任意命令后追加 `--dry-run`（如 `/orch 12 --dry-run`），将会在整个编排阶段的子命令底层均透传 `--dry-run` 标志，**仅打印将执行的拟态 JSON 与物理操作而不产生任何真实文件/Git/GitHub 物理副作用**。
 
 ---
@@ -150,6 +152,11 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
      - `test` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/test-report.md`（要求：在 worktree 跑测试，调用 gate 进行真绿判定）。
      - `review` agent → 产出 `docs/<功能名>/phase-<N>/<sub>/review-report.md`（约束：核对白名单越界、对齐 UI 验收与量测清单，强审计可观测性日志级别与脱敏规范）。
      - `chaos` agent → 产出 `docs/test/chaos-report-<sub_issue>.md`（约束：只读审计异常静默吞噬、空值注入防御、高并发竞态与超时 Fallback 控制，禁止改代码）。
+   - 若 `test` agent 的 `gate --sub <sub_issue>` 失败，按 `workflowGates.debug` 处理：
+     - 未配置或 `block`：自动派发 `debug` agent，产出 `docs/<功能名>/phase-<N>/<sub>/debug-report.md`，评论当前 sub-issue 后阻断流程，等待 `/debug confirm <sub_issue>`。
+     - `warn`：自动派发 `debug` agent 并评论诊断报告，但保留普通 gate 失败状态。
+     - `off`：不自动派发 Debug，沿用原有 blocked 行为。
+   - `debug` agent 只允许补带 `ORCH_DEBUG_TEMP:<sub>:<attempt>` 标记的临时日志、无头复现和生成修复计划；确认后的修复必须交给 `coding` agent。
 3. **混沌破坏门禁拦截**：
    - PR 提单前，执行混沌门禁强核对：
      ```bash
@@ -161,6 +168,7 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
      ```bash
      node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" commit-docs --sub <sub_issue> --stage D
      ```
+   - 若本 sub 产生了 `debug-report.md`，该命令会随 D 阶段报告一并提交；临时日志本身不得提交。
 
 ---
 
@@ -220,4 +228,3 @@ node "${CLAUDE_PLUGIN_ROOT}/orch-cli/dist/index.js" <子命令> [flags]
        ```
      - 提示人类输入确认，以合入物理配置（`.orch/config.json` 及 Hooks 正则表达式），闭合全链路“自进化”研发环。
    - 若项目配置 `retro.enabled` 设为了 `false`，则在清理 worktree 后直接宣布 Phase 交付全面闭环，跳过并省略派发 Retro 与自演进编译器环节。
-

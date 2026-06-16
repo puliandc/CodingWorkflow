@@ -32,6 +32,7 @@ export interface ProjectConfig {
     intake?: 'block' | 'warn' | 'off';
     probing?: 'block' | 'warn' | 'off';
     adr?: 'block' | 'warn' | 'off';
+    debug?: 'block' | 'warn' | 'off';
     contractCollision?: 'block' | 'warn' | 'off';
     chaos?: 'block' | 'warn' | 'off';
     release?: 'block' | 'warn' | 'off';

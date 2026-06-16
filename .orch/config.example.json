@@ -42,6 +42,7 @@
     "intake": "block",
     "probing": "warn",
     "adr": "block",
+    "debug": "block",
     "contractCollision": "block",
     "chaos": "block",
     "release": "block",

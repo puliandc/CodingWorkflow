@@ -158,12 +158,47 @@ fi
 # 检查当前相对路径是否在白名单列表内
 if echo "$WHITELIST" | grep -qxF "$REL_PATH"; then
     exit 0
-else
-    echo "" >&2
-    echo "⛔ 架构契约越界：试图修改白名单之外的文件 $REL_PATH" >&2
-    echo "   本次 Phase 允许修改的文件仅限于：" >&2
-    echo "$WHITELIST" | sed 's/^/   - /' >&2
-    echo "   [质量纪律拦截] 请立即停手，触发「越界写入」停止条件上报用户裁决！" >&2
-    echo "" >&2
-    exit 2
 fi
+
+# Debug Agent 临时日志例外：必须由 orch-cli debug-allow-temp-log 显式登记。
+# 这里只放行文件级写入权限；日志内容是否带 ORCH_DEBUG_TEMP 标记由 debug-clean-check 兜底验收。
+DEBUG_MANIFEST="$WORKTREE_ROOT/.orch/debug/temp-log-allowlist.json"
+if [ -f "$DEBUG_MANIFEST" ]; then
+    DEBUG_ALLOWED=$(python3 -c "
+import json, sys
+manifest_path, rel_path = sys.argv[1], sys.argv[2]
+try:
+    with open(manifest_path, encoding='utf-8') as f:
+        data = json.load(f)
+    entries = data.get('entries')
+    if data.get('version') != 1 or not isinstance(entries, list):
+        print('invalid')
+    elif any(isinstance(e, dict) and e.get('path') == rel_path for e in entries):
+        print('yes')
+    else:
+        print('no')
+except Exception:
+    print('invalid')
+" "$DEBUG_MANIFEST" "$REL_PATH" 2>/dev/null)
+
+    if [ "$DEBUG_ALLOWED" = "yes" ]; then
+        exit 0
+    fi
+
+    if [ "$DEBUG_ALLOWED" = "invalid" ]; then
+        echo "" >&2
+        echo "⛔ Debug 临时日志清单损坏：$DEBUG_MANIFEST" >&2
+        echo "   为避免白名单绕过失控，当前白名单外写入已 fail-closed 阻断。" >&2
+        echo "" >&2
+        exit 2
+    fi
+fi
+
+echo "" >&2
+echo "⛔ 架构契约越界：试图修改白名单之外的文件 $REL_PATH" >&2
+echo "   本次 Phase 允许修改的文件仅限于：" >&2
+echo "$WHITELIST" | sed 's/^/   - /' >&2
+echo "   [质量纪律拦截] 请立即停手，触发「越界写入」停止条件上报用户裁决！" >&2
+echo "   若这是 Debug 临时诊断日志，请先运行 debug-allow-temp-log 登记，并确保日志带 ORCH_DEBUG_TEMP 标记。" >&2
+echo "" >&2
+exit 2

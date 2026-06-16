@@ -6,7 +6,8 @@
     "name": "puliandc"
   },
   "commands": [
-    "commands/orch.md"
+    "commands/orch.md",
+    "commands/debug.md"
   ],
   "agents": [
     "agents/triage.md",
@@ -15,6 +16,7 @@
     "agents/arch.md",
     "agents/design.md",
     "agents/coding.md",
+    "agents/debug.md",
     "agents/chaos.md",
     "agents/test.md",
     "agents/review.md",

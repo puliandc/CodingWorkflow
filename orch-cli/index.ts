@@ -23,6 +23,9 @@ const COMMANDS: Record<string, string> = {
   'commit-docs':       '提交 sub-issue 当前阶段文档（B：三文件 / D：验收报告）并推送',
   'worktree-remove':   '清理 Phase 的本地 worktree 与分支（Phase PR 合并后调用）',
   'gate':              '执行 lint/format/test 并进行真绿/伪绿三硬判定',
+  'debug-comment':     '将 Debug 诊断报告评论到当前 sub-issue',
+  'debug-clean-check': '检查源码中是否仍残留 Debug 临时日志标记',
+  'debug-allow-temp-log': '登记 Debug 临时日志白名单外写入授权',
   'precheck':          '进行编码前的契约三表与占位符确定性门禁校验',
   'intake-check':      '校验 intake.md 需求入口准入合规度',
   'contract-register': '登记 sub-issue 契约白名单和冻结表至全局看板',
@@ -123,6 +126,21 @@ async function main(): Promise<void> {
     }
     case 'gate': {
       const m = await import('./commands/gate');
+      m.run(rest);
+      break;
+    }
+    case 'debug-comment': {
+      const m = await import('./commands/debug-comment');
+      m.run(rest);
+      break;
+    }
+    case 'debug-clean-check': {
+      const m = await import('./commands/debug-clean-check');
+      m.run(rest);
+      break;
+    }
+    case 'debug-allow-temp-log': {
+      const m = await import('./commands/debug-allow-temp-log');
       m.run(rest);
       break;
     }

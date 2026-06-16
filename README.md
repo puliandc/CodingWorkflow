@@ -19,7 +19,7 @@
 - **Phase C：编码前门禁校验与受控编码 (`precheck` 门禁)**
   编码前强校验 [准入-探波-ADR-契约-并发锁-数据库迁移-分支命名] 等门禁，通过后派发受控 `coding` 在隔离 worktree 限制白名单内写码。
 - **Phase D：真绿三硬判定、设计验收与红蓝混沌防御**
-  三硬判定拒绝"伪绿"通过；派发 `chaos` 针对高并发、三方接口挂掉、异常吞噬等注入破坏性缺陷，审查防御性代码，未通过 `chaos-gate` 则物理拦截。
+  三硬判定拒绝"伪绿"通过；若 D 阶段 `gate` 失败且 `workflowGates.debug` 未关闭，自动拉起 `debug` 进行临时日志诊断、无头复现、Issue 证据评论与修复计划等待确认；派发 `chaos` 针对高并发、三方接口挂掉、异常吞噬等注入破坏性缺陷，审查防御性代码，未通过 `chaos-gate` 则物理拦截。
 - **Phase E：发布与回退 Runbook 硬核审计**
   派发 `release` 生成 Feature Flag、生产一键回退 Runbook 及 Schema 补偿，`release-check` 门禁执行发布计划强核对。
 - **Phase E-2：Post-Merge 交付校验、Retro 知识沉淀与系统免疫**
@@ -72,6 +72,7 @@
     "intake": "block",
     "probing": "warn",
     "adr": "block",
+    "debug": "block",
     "contractCollision": "block",
     "chaos": "block",
     "release": "block",
@@ -110,6 +111,7 @@
 - `largeFileExtensions` [可选]：指定项目自定义的只读大文件后缀，大文件在主会话读取会被拦截并引导分派 subagent。
 - `migrationCheck` [可选]：是否对涉及 Schema 契约变更的文件强制校验 up & down 回滚 SQL 脚本的存在性。
 - `workflowGates` [可选]：定义从需求 Intake 到混沌 Chaos 各流程模块的门禁等级（`block` 阻断 / `warn` 警告 / `off` 降级关闭）。
+- `workflowGates.debug` [可选]：控制 D 阶段 `gate` 失败后的自动 Debug，缺省为 `block`（自动诊断并等待 `/debug confirm`）；设为 `warn` 时只生成诊断评论，设为 `off` 时关闭自动 Debug。
 - `commands` [可选]：定义门禁中调用本地编译器的各种指令（含 build/lint/test/format）。
 
 ---
@@ -129,6 +131,12 @@
 ### 第三步：驱动状态机起飞
 ```bash
 /orch <GitHub Phase Issue 编号或 URL>
+```
+
+手动验收发现 Bug 时，也可以直接拉起诊断：
+```bash
+/debug <sub-issue 编号>
+/debug confirm <sub-issue 编号>
 ```
 
 ### 第四步：后续更新与同步 (/plugin update)
@@ -151,6 +159,7 @@
 | **七启动与九停止摘要** | 编码阶段 (C) | 纪律 2/3：启动与停止约束 | **强制 (Mandatory)** | 写入 Coding Agent 核心系统提示词，不可关闭 |
 | **架构契约三表** | 设计阶段 (B) | 纪律 4：契约锁定 (三表齐全 + 护栏非空) | **强制 (Mandatory)** | precheck 强门禁，如缺失则强力拦截编码进程 |
 | **真绿与伪绿三硬 gate** | 验收阶段 (D) | 纪律 5：测试真绿判定 (AND 判定) | **强制 (Mandatory)** | 可通过空 commands 默认放行；支持 `--dry-run` 调试 |
+| **Debug 诊断闭环** | 验收阶段 (D) | 纪律 5 扩展：失败证据定位与人工确认修复 | **可选 (Optional)** | 配置 `workflowGates.debug: "off"` 关闭自动 Debug，手动 `/debug` 仍可用 |
 | **编码前 precheck 门禁** | 编码前 (C 前) | 纪律 6：编码前 Graded 门禁强阻断 | **强制 (Mandatory)** | 不可关闭，提供 high-level 安全屏障 |
 | **设计验收与代码审计** | 验收阶段 (D) | 纪律 7：量测指标核对与 PII 脱敏审计 | **强制 (Mandatory)** | 可通过无 `needs-ui` 标签跳过设计清单，PII 强制审计 |
 | **Retro 知识沉淀与免疫** | 交付后阶段 (E-2) | 纪律 8：Retro 复盘与规则自愈编译器 | **可选 (Optional)** | 默认关闭。配置 `retro.enabled` 为 `true` 启用 |
@@ -186,7 +195,8 @@ CodingWorkflow/
 │   ├── plugin.json               # 插件元数据与指令注册
 │   └── marketplace.json          # Marketplace 本地注册信息
 ├── commands/
-│   └── orch.md                   # /orch 主编排状态机骨架 (声明了全套 HARD RULE)
+│   ├── orch.md                   # /orch 主编排状态机骨架 (声明了全套 HARD RULE)
+│   └── debug.md                  # /debug 诊断与确认入口
 ├── agents/
 │   ├── triage.md                 # 需求准入 Triage Agent (产出 intake-<Issue>.md)
 │   ├── probing.md                # 现状勘探 Probing Agent (只读分析防撞车)
@@ -194,6 +204,7 @@ CodingWorkflow/
 │   ├── arch.md                   # 架构锁定 Arch Agent (产出契约三表与可观测性打桩契约)
 │   ├── design.md                 # UI设计 Design Agent (产出 Headless 及目视量测清单)
 │   ├── coding.md                 # 编码 Coding Agent (含七启动与九停止受控指令)
+│   ├── debug.md                  # 诊断 Debug Agent (临时日志、无头复现、证据评论、修复计划)
 │   ├── chaos.md                  # 混沌 Chaos Agent (红蓝对抗负向安全审计，禁止写码)
 │   ├── test.md                   # 测试 Test Agent (测试设计与执行报告)
 │   ├── review.md                 # 代码审查 Review Agent (契约校验、日志脱敏与 PII 脱敏审查)

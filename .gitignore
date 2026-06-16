@@ -4,5 +4,6 @@ dist/
 !orch-cli/dist/
 .orch/config.json
 .orch/phases/
+.orch/debug/
 *.tmp
 .DS_Store

@@ -4,8 +4,9 @@
  * 覆盖（#24 fail-closed 回归）：
  *   a. Edit 白名单内文件 → exit 0（放行）
  *   b. Edit 白名单外文件 → exit 2（阻断）
- *   c. .precheck-done 存在但 arch.md 被删除 → exit 2（fail-closed 回归）
- *   d. 无 .orch/config.json → exit 0（优雅 no-op）
+ *   c. Debug 清单授权的白名单外临时日志文件 → exit 0（放行）
+ *   d. .precheck-done 存在但 arch.md 被删除 → exit 2（fail-closed 回归）
+ *   e. 无 .orch/config.json → exit 0（优雅 no-op）
  */
 
 import { describe, it, before, after } from 'node:test';
@@ -120,7 +121,27 @@ describe('guard-impl-access.sh', () => {
     assert.equal(result.status, 2, `期望 exit 2，实际=${result.status}\nstderr=${result.stderr}`);
   });
 
-  it('c: .precheck-done 存在但 arch.md 被删除 → exit 2（fail-closed 回归 #24）', () => {
+  it('c: Debug 清单授权的白名单外临时日志文件 → exit 0（放行）', () => {
+    const debugDir = join(tmpRepo, '.orch', 'debug');
+    mkdirSync(debugDir, { recursive: true });
+    writeFileSync(join(debugDir, 'temp-log-allowlist.json'), JSON.stringify({
+      version: 1,
+      entries: [
+        {
+          sub: 12,
+          path: 'src/diagnostic.ts',
+          reason: 'Debug 临时诊断日志',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+
+    const diagnosticPath = join(tmpRepo, 'src', 'diagnostic.ts');
+    const result = runHook(tmpRepo, makeInput({ filePath: diagnosticPath }));
+    assert.equal(result.status, 0, `期望 exit 0，实际=${result.status}\nstderr=${result.stderr}`);
+  });
+
+  it('d: .precheck-done 存在但 arch.md 被删除 → exit 2（fail-closed 回归 #24）', () => {
     // 删除 arch.md
     unlinkSync(archMdPath);
 
@@ -133,7 +154,7 @@ describe('guard-impl-access.sh', () => {
     assert.equal(result.status, 2, `期望 exit 2（fail-closed），实际=${result.status}\nstderr=${result.stderr}`);
   });
 
-  it('d: 无 .orch/config.json 的目录 → exit 0（优雅 no-op）', () => {
+  it('e: 无 .orch/config.json 的目录 → exit 0（优雅 no-op）', () => {
     // 创建无 config 的裸 git 仓库
     const bareRepo = initTmpRepo();
     try {
