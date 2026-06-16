@@ -4,25 +4,5 @@
   "description": "统一编排工作流：单引擎 orch + 质量纪律注入 + plugin 跨项目分发",
   "author": {
     "name": "puliandc"
-  },
-  "commands": [
-    "commands/orch.md",
-    "commands/debug.md"
-  ],
-  "agents": [
-    "agents/triage.md",
-    "agents/probing.md",
-    "agents/adr.md",
-    "agents/arch.md",
-    "agents/design.md",
-    "agents/coding.md",
-    "agents/debug.md",
-    "agents/chaos.md",
-    "agents/test.md",
-    "agents/review.md",
-    "agents/release.md",
-    "agents/architecture-docs.md",
-    "agents/guardrail-compiler.md",
-    "agents/retro.md"
-  ]
+  }
 }

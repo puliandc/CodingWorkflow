@@ -1,18 +1,21 @@
 {
-  "name": "CodingWorkflow Local Marketplace",
-  "owner": "puliandc",
+  "name": "codingworkflow-local-marketplace",
+  "description": "CodingWorkflow 本地 marketplace：分发 codingworkflow 编排插件(/orch 状态机 + 阶段 agents + PreToolUse 守卫)。",
+  "owner": {
+    "name": "puliandc"
+  },
   "plugins": [
     {
       "name": "codingworkflow",
       "source": ".",
       "version": "1.0.0",
       "description": "Config 驱动的通用 Claude Code 编排引擎。通过 .orch/config.json 注入项目专属参数实现：拆 sub-issue → 状态机推进 → 编码门禁 → PR 创建与交付闭环。",
-      "tagline": "全生命周期自演进 AI 研发纪律与状态机引擎",
-      "author": "puliandc",
+      "author": {
+        "name": "puliandc"
+      },
       "repository": "https://github.com/puliandc/CodingWorkflow",
       "license": "MIT",
-      "tags": ["workflow", "orchestration", "automation"],
-      "minClaudeCodeVersion": "1.0.0"
+      "tags": ["workflow", "orchestration", "automation"]
     }
   ]
 }
